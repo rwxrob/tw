@@ -17,7 +17,7 @@ var Cmd = &bonzai.Cmd{
 	Name:    "topic",
 	Alias:   "t",
 	Short:   "get or set the current stream topic",
-	MaxArgs: 1,
+	MaxArgs: -1,
 	Do:      run,
 }
 
@@ -28,7 +28,7 @@ func run(x *bonzai.Cmd, args ...string) error {
 		return pickTopic(topicsFile)
 	}
 
-	arg := args[0]
+	arg := strings.Join(args, " ")
 
 	if arg == "-" {
 		return swapTopics(topicsFile)
