@@ -19,9 +19,11 @@ var Cmd = &bonzai.Cmd{
 
 func run(x *bonzai.Cmd, args ...string) error {
 	cfg := loadConfig()
+	bs := newBelaboxLiveState()
 
+	go startBelabox(cfg, bs)
 	go startHTTP(cfg)
-	go startOBS(cfg)
+	go startOBS(cfg, bs)
 	go startTwitchPoller(cfg)
 	go startClipsSyncer(cfg)
 
@@ -41,9 +43,8 @@ type config struct {
 	clipsScene        string
 	liveScene         string
 	liveSceneFile     string
-	belaboxSource     string
-	belaboxStable     int
-	belaboxPoll       int
+	belaboxStable          int
+	belaboxRemoteKeyFile   string
 
 }
 
@@ -66,9 +67,8 @@ func loadConfig() *config {
 	c.clipsScene = getenv("OBS_CLIPS_SCENE", "Clips")
 	c.liveScene = getenv("OBS_LIVE_SCENE", "IRL-Moblin")
 	c.liveSceneFile = getenv("OBS_LIVE_SCENE_FILE", filepath.Join(os.Getenv("HOME"), ".local", "state", "tw-live-scene"))
-	c.belaboxSource = getenv("OBS_BELABOX_SOURCE", "Belabox")
 	c.belaboxStable = envInt("OBS_BELABOX_STABLE", 3)
-	c.belaboxPoll = envInt("OBS_BELABOX_POLL", 2)
+	c.belaboxRemoteKeyFile = getenv("BELABOX_REMOTE_KEY_FILE", filepath.Join(os.Getenv("HOME"), ".config", "tw", "belabox-remote-key"))
 	if c.twitchBroadcaster == "" {
 		log.Printf("serve: TWITCH_BROADCASTER_ID not set; Twitch integration disabled")
 	}
