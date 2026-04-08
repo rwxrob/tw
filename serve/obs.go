@@ -168,7 +168,11 @@ func obsPollBelabox(ctx context.Context, cfg *config, state *obsState, c *obsCon
 
 func obsHandleResponse(cfg *config, state *obsState, c *obsConn, d json.RawMessage) {
 	var resp struct {
-		RequestType  string          `json:"requestType"`
+		RequestType   string `json:"requestType"`
+		RequestStatus struct {
+			Result bool `json:"result"`
+			Code   int  `json:"code"`
+		} `json:"requestStatus"`
 		ResponseData json.RawMessage `json:"responseData"`
 	}
 	if err := json.Unmarshal(d, &resp); err != nil {
@@ -196,18 +200,25 @@ func obsHandleResponse(cfg *config, state *obsState, c *obsConn, d json.RawMessa
 		}
 
 	case "GetMediaInputStatus":
+		if !resp.RequestStatus.Result {
+			log.Printf("obs: GetMediaInputStatus failed code=%d; check OBS_BELABOX_SOURCE=%q", resp.RequestStatus.Code, cfg.belaboxSource)
+			return
+		}
 		var data struct {
 			MediaState string `json:"mediaState"`
 		}
 		if err := json.Unmarshal(resp.ResponseData, &data); err != nil {
 			return
 		}
-		playing := data.MediaState == "OBS_MEDIA_STATE_PLAYING"
+		log.Printf("obs: belabox mediaState=%s", data.MediaState)
+		playing := data.MediaState == "OBS_MEDIA_STATE_PLAYING" ||
+			data.MediaState == "OBS_MEDIA_STATE_OPENING" ||
+			data.MediaState == "OBS_MEDIA_STATE_BUFFERING"
 		state.mu.Lock()
 		if playing {
 			if state.currentScene == cfg.clipsScene && state.prevScene != "" && state.stableTimer == nil {
 				targetScene := state.prevScene
-				log.Printf("obs: belabox playing on clips; stable timer %ds before restoring %s", cfg.belaboxStable, targetScene)
+				log.Printf("obs: belabox active on clips; stable timer %ds before restoring %s", cfg.belaboxStable, targetScene)
 				state.stableTimer = time.AfterFunc(time.Duration(cfg.belaboxStable)*time.Second, func() {
 					state.mu.Lock()
 					state.stableTimer = nil
