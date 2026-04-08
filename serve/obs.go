@@ -247,8 +247,14 @@ func obsHandleEvent(cfg *config, state *obsState, c *websocket.Conn, d json.RawM
 		}
 		log.Printf("obs: belabox started (confirming...)")
 		state.mu.Lock()
-		// Restart confirm window — PlaybackStarted fires on every reconnect attempt.
-		// Only trust it if no PlaybackEnded arrives within 2s.
+		// Cancel debounce immediately — Belabox is trying to come up.
+		// If confirm fails (PlaybackEnded within 2s), debounce restarts then.
+		if state.debounceTimer != nil {
+			state.debounceTimer.Stop()
+			state.debounceTimer = nil
+			log.Printf("obs: debounce cancelled; belabox reconnecting")
+		}
+		// Restart confirm window — only trust PlaybackStarted if stable for 2s.
 		if state.confirmTimer != nil {
 			state.confirmTimer.Stop()
 		}
@@ -271,10 +277,8 @@ func obsHandleEvent(cfg *config, state *obsState, c *websocket.Conn, d json.RawM
 					obsSendRequest(c, "SetCurrentProgramScene", map[string]any{"sceneName": targetScene})
 					log.Printf("obs: belabox stable; restored to %s", targetScene)
 				})
-			} else if state.debounceTimer != nil {
-				state.debounceTimer.Stop()
-				state.debounceTimer = nil
-				log.Printf("obs: belabox confirmed up before switch; debounce cancelled")
+			} else {
+				log.Printf("obs: belabox confirmed up (already on live scene)")
 			}
 			state.mu.Unlock()
 		})
