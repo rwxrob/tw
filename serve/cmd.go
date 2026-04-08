@@ -42,7 +42,6 @@ type config struct {
 	liveScene         string
 	liveSceneFile     string
 	belaboxSource     string
-	belaboxDebounce   int
 	belaboxStable     int
 	belaboxPoll       int
 
@@ -68,7 +67,6 @@ func loadConfig() *config {
 	c.liveScene = getenv("OBS_LIVE_SCENE", "IRL-Moblin")
 	c.liveSceneFile = getenv("OBS_LIVE_SCENE_FILE", filepath.Join(os.Getenv("HOME"), ".local", "state", "tw-live-scene"))
 	c.belaboxSource = getenv("OBS_BELABOX_SOURCE", "Belabox")
-	c.belaboxDebounce = envInt("OBS_BELABOX_DEBOUNCE", 3)
 	c.belaboxStable = envInt("OBS_BELABOX_STABLE", 3)
 	c.belaboxPoll = envInt("OBS_BELABOX_POLL", 2)
 	if c.twitchBroadcaster == "" {

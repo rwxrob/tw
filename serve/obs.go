@@ -50,11 +50,10 @@ func (c *obsConn) send(reqType string, reqData map[string]any) {
 }
 
 type obsState struct {
-	mu            sync.Mutex
-	currentScene  string
-	prevScene     string
-	debounceTimer *time.Timer
-	stableTimer   *time.Timer
+	mu           sync.Mutex
+	currentScene string
+	prevScene    string
+	stableTimer  *time.Timer
 }
 
 func startOBS(cfg *config) {
@@ -206,11 +205,6 @@ func obsHandleResponse(cfg *config, state *obsState, c *obsConn, d json.RawMessa
 		playing := data.MediaState == "OBS_MEDIA_STATE_PLAYING"
 		state.mu.Lock()
 		if playing {
-			if state.debounceTimer != nil {
-				state.debounceTimer.Stop()
-				state.debounceTimer = nil
-				log.Printf("obs: belabox playing; debounce cancelled")
-			}
 			if state.currentScene == cfg.clipsScene && state.prevScene != "" && state.stableTimer == nil {
 				targetScene := state.prevScene
 				log.Printf("obs: belabox playing on clips; stable timer %ds before restoring %s", cfg.belaboxStable, targetScene)
@@ -228,19 +222,15 @@ func obsHandleResponse(cfg *config, state *obsState, c *obsConn, d json.RawMessa
 				state.stableTimer.Stop()
 				state.stableTimer = nil
 			}
-			if state.debounceTimer == nil && state.currentScene != "" && state.currentScene != cfg.clipsScene {
+			if state.currentScene != "" && state.currentScene != cfg.clipsScene {
 				prevScene := state.currentScene
 				state.prevScene = prevScene
 				_ = os.MkdirAll(filepath.Dir(cfg.liveSceneFile), 0755)
 				_ = os.WriteFile(cfg.liveSceneFile, []byte(prevScene+"\n"), 0644)
-				log.Printf("obs: belabox %s; debounce %ds before switching to %s", data.MediaState, cfg.belaboxDebounce, cfg.clipsScene)
-				state.debounceTimer = time.AfterFunc(time.Duration(cfg.belaboxDebounce)*time.Second, func() {
-					state.mu.Lock()
-					state.debounceTimer = nil
-					state.mu.Unlock()
-					c.send("SetCurrentProgramScene", map[string]any{"sceneName": cfg.clipsScene})
-					log.Printf("obs: debounce fired; switched to %s", cfg.clipsScene)
-				})
+				log.Printf("obs: belabox %s; switching to %s", data.MediaState, cfg.clipsScene)
+				state.mu.Unlock()
+				c.send("SetCurrentProgramScene", map[string]any{"sceneName": cfg.clipsScene})
+				return
 			}
 		}
 		state.mu.Unlock()
