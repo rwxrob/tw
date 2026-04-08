@@ -53,7 +53,6 @@ type obsState struct {
 	mu           sync.Mutex
 	currentScene string
 	prevScene    string
-	stableTimer  *time.Timer
 }
 
 func startOBS(cfg *config, bs *belaboxLiveState) {
@@ -159,37 +158,27 @@ func obsWatchBelabox(ctx context.Context, cfg *config, state *obsState, c *obsCo
 
 	apply := func(live bool) {
 		state.mu.Lock()
+		defer state.mu.Unlock()
 		if live {
-			if state.currentScene == cfg.clipsScene && state.prevScene != "" && state.stableTimer == nil {
-				targetScene := state.prevScene
-				log.Printf("obs: belabox live on clips; stable timer %ds before restoring %s", cfg.belaboxStable, targetScene)
-				state.stableTimer = time.AfterFunc(time.Duration(cfg.belaboxStable)*time.Second, func() {
-					state.mu.Lock()
-					state.stableTimer = nil
-					state.prevScene = ""
-					state.mu.Unlock()
-					c.send("SetCurrentProgramScene", map[string]any{"sceneName": targetScene})
-					log.Printf("obs: belabox stable; restored to %s", targetScene)
-				})
+			if state.currentScene == cfg.clipsScene && state.prevScene != "" {
+				target := state.prevScene
+				state.prevScene = ""
+				state.mu.Unlock()
+				log.Printf("obs: belabox live; restoring %s", target)
+				c.send("SetCurrentProgramScene", map[string]any{"sceneName": target})
+				state.mu.Lock()
 			}
 		} else {
 			if state.currentScene != "" && state.currentScene != cfg.clipsScene {
-				if state.stableTimer != nil {
-					state.stableTimer.Stop()
-					state.stableTimer = nil
-				}
-				prevScene := state.currentScene
-				state.prevScene = prevScene
+				state.prevScene = state.currentScene
 				_ = os.MkdirAll(filepath.Dir(cfg.liveSceneFile), 0755)
-				_ = os.WriteFile(cfg.liveSceneFile, []byte(prevScene+"\n"), 0644)
-				log.Printf("obs: belabox not live; switching to %s", cfg.clipsScene)
+				_ = os.WriteFile(cfg.liveSceneFile, []byte(state.currentScene+"\n"), 0644)
 				state.mu.Unlock()
+				log.Printf("obs: belabox down; switching to %s", cfg.clipsScene)
 				c.send("SetCurrentProgramScene", map[string]any{"sceneName": cfg.clipsScene})
-				return
+				state.mu.Lock()
 			}
-			// already on Clips: leave stable timer running through brief not-live blips
 		}
-		state.mu.Unlock()
 	}
 
 	apply(bs.get())

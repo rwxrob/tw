@@ -43,7 +43,6 @@ type config struct {
 	clipsScene        string
 	liveScene         string
 	liveSceneFile     string
-	belaboxStable          int
 	belaboxRemoteKeyFile   string
 
 }
@@ -67,7 +66,6 @@ func loadConfig() *config {
 	c.clipsScene = getenv("OBS_CLIPS_SCENE", "Clips")
 	c.liveScene = getenv("OBS_LIVE_SCENE", "IRL-Moblin")
 	c.liveSceneFile = getenv("OBS_LIVE_SCENE_FILE", filepath.Join(os.Getenv("HOME"), ".local", "state", "tw-live-scene"))
-	c.belaboxStable = envInt("OBS_BELABOX_STABLE", 3)
 	c.belaboxRemoteKeyFile = getenv("BELABOX_REMOTE_KEY_FILE", filepath.Join(os.Getenv("HOME"), ".config", "tw", "belabox-remote-key"))
 	if c.twitchBroadcaster == "" {
 		log.Printf("serve: TWITCH_BROADCASTER_ID not set; Twitch integration disabled")
