@@ -1,0 +1,276 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;background:#111;overflow:hidden;display:flex;align-items:center;justify-content:center}
+
+.tv{
+  position:relative;
+  width:78vmin;
+  height:68vmin;
+  background:linear-gradient(160deg,#3a2510 0%,#1e1008 60%,#120a04 100%);
+  border-radius:10% 10% 6% 6% / 6% 6% 4% 4%;
+  border:4px solid #0d0702;
+  box-shadow:
+    0 0 0 2px #5c3a18,
+    0 0 0 5px #0d0702,
+    0 12px 40px rgba(0,0,0,.9),
+    inset 0 1px 2px rgba(255,180,60,.12),
+    inset 0 -2px 6px rgba(0,0,0,.6);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding-bottom:3vmin;
+}
+
+.antenna{
+  position:absolute;
+  top:-9vmin;
+  left:50%;
+  transform:translateX(-50%);
+  display:flex;
+  gap:3vmin;
+}
+
+.ant{
+  width:3px;
+  height:9vmin;
+  background:linear-gradient(to top,#444,#888);
+  border-radius:2px;
+  transform-origin:bottom center;
+  box-shadow:0 0 4px rgba(0,0,0,.5);
+}
+
+.ant:first-child{transform:rotate(-22deg)}
+.ant:last-child{transform:rotate(22deg)}
+
+.ant-ball{
+  width:7px;height:7px;
+  background:#aaa;
+  border-radius:50%;
+  margin:-4px auto 0;
+  box-shadow:0 0 3px rgba(200,200,200,.4);
+}
+
+.screen-outer{
+  width:76%;
+  aspect-ratio:4/3;
+  background:#000;
+  border-radius:6%/7%;
+  padding:2%;
+  box-shadow:
+    inset 0 0 12px rgba(0,0,0,.8),
+    0 0 0 3px #0a0603,
+    0 0 0 5px #3a2510,
+    0 0 0 7px #0a0603;
+}
+
+.screen-wrap{
+  position:relative;
+  width:100%;
+  height:100%;
+  background:#000;
+  border-radius:5%/6%;
+  overflow:hidden;
+}
+
+/* scanlines */
+.screen-wrap::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:repeating-linear-gradient(
+    0deg,
+    rgba(0,0,0,0) 0px,
+    rgba(0,0,0,0) 3px,
+    rgba(0,0,0,.18) 3px,
+    rgba(0,0,0,.18) 4px
+  );
+  z-index:10;
+  pointer-events:none;
+}
+
+/* vignette + edge darkening */
+.screen-wrap::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:radial-gradient(ellipse at 50% 50%,transparent 55%,rgba(0,0,0,.75) 100%);
+  z-index:11;
+  pointer-events:none;
+}
+
+video{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  filter:brightness(.8) contrast(1.15) saturate(1.25) sepia(.08);
+}
+
+.glow{
+  position:absolute;
+  inset:0;
+  z-index:9;
+  pointer-events:none;
+  background:radial-gradient(ellipse at 50% 40%,rgba(100,220,255,.04) 0%,transparent 70%);
+  animation:flicker 5s infinite;
+}
+
+@keyframes flicker{
+  0%,100%{opacity:1}
+  45%{opacity:.97}
+  46%{opacity:.88}
+  47%{opacity:.97}
+  72%{opacity:1}
+  73%{opacity:.93}
+  74%{opacity:1}
+}
+
+.glitch{
+  position:absolute;
+  inset:0;
+  z-index:12;
+  pointer-events:none;
+  opacity:0;
+  animation:glitch 12s infinite;
+}
+
+@keyframes glitch{
+  0%,88%,100%{opacity:0;transform:none}
+  89%{opacity:1;transform:translateX(-3px);background:rgba(0,255,200,.03);clip-path:inset(30% 0 60% 0)}
+  90%{opacity:0;transform:translateX(3px)}
+  91%{opacity:1;transform:translateX(-1px);clip-path:inset(10% 0 80% 0)}
+  92%{opacity:0}
+}
+
+.channel-badge{
+  position:absolute;
+  top:0.8vmin;
+  right:1.2vmin;
+  color:#f90;
+  font-family:monospace;
+  font-size:1.4vmin;
+  font-weight:bold;
+  letter-spacing:.05em;
+  opacity:.65;
+  text-shadow:0 0 6px #f90,0 0 12px rgba(255,140,0,.4);
+  z-index:13;
+}
+
+.panel{
+  display:flex;
+  align-items:center;
+  gap:2.5vmin;
+  margin-top:2vmin;
+  width:76%;
+  justify-content:flex-end;
+  padding-right:1vmin;
+}
+
+.knob{
+  width:3.5vmin;
+  height:3.5vmin;
+  border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,#666,#1a1a1a);
+  border:2px solid #111;
+  box-shadow:0 2px 4px rgba(0,0,0,.7),0 0 0 1px #333;
+  position:relative;
+}
+
+.knob::after{
+  content:'';
+  position:absolute;
+  top:50%;left:50%;
+  width:1.2vmin;height:1.2vmin;
+  background:rgba(255,255,255,.1);
+  border-radius:50%;
+  transform:translate(-50%,-60%);
+}
+
+.knob:nth-child(1){transform:rotate(40deg)}
+.knob:nth-child(2){transform:rotate(-30deg);width:2.8vmin;height:2.8vmin}
+
+.speaker{
+  display:flex;
+  flex-direction:column;
+  gap:0.35vmin;
+  margin-right:auto;
+}
+
+.speaker span{
+  display:block;
+  width:4vmin;
+  height:0.4vmin;
+  background:#1a1a1a;
+  border-radius:1px;
+  box-shadow:0 0 2px rgba(0,0,0,.5);
+}
+
+.legs{
+  position:absolute;
+  bottom:-7vmin;
+  left:50%;
+  transform:translateX(-50%);
+  width:55%;
+  display:flex;
+  justify-content:space-between;
+}
+
+.leg{
+  width:9%;
+  height:7vmin;
+  background:linear-gradient(to bottom,#2a1a08,#100a03);
+  border-radius:0 0 3px 3px;
+  box-shadow:2px 0 4px rgba(0,0,0,.5);
+}
+</style></head>
+<body>
+<div class="tv">
+  <div class="antenna">
+    <div class="ant"><div class="ant-ball"></div></div>
+    <div class="ant"><div class="ant-ball"></div></div>
+  </div>
+  <div class="screen-outer">
+    <div class="screen-wrap">
+      <div class="glow"></div>
+      <video id="v" autoplay></video>
+      <div class="glitch"></div>
+      <div class="channel-badge">CH 3</div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="speaker">
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="knob"></div>
+    <div class="knob"></div>
+  </div>
+  <div class="legs"><div class="leg"></div><div class="leg"></div></div>
+</div>
+<script>
+const v = document.getElementById('v');
+let ws;
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(proto + '//' + location.host + '/clips/ws');
+  ws.onmessage = function(e) {
+    const msg = JSON.parse(e.data);
+    if (msg.src) { v.src = msg.src; v.play().catch(function(){}); }
+  };
+  ws.onclose = function() { setTimeout(connect, 2000); };
+  ws.onerror = function() { ws.close(); };
+}
+
+function next() {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({event:'ended'}));
+  }
+}
+
+v.addEventListener('ended', next);
+v.addEventListener('error', next);
+
+connect();
+</script>
+</body></html>

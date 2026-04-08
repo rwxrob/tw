@@ -16,6 +16,9 @@ import (
 //go:embed clips.html
 var clipsHTML []byte
 
+//go:embed retrotv
+var retrotvHTML []byte
+
 type clipsMsg struct {
 	Src   string `json:"src,omitempty"`
 	Event string `json:"event,omitempty"`
@@ -37,6 +40,12 @@ func registerClipsRoutes(cfg *config, mux *http.ServeMux) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
 		_, _ = w.Write(clipsHTML)
+	})
+
+	mux.HandleFunc("/clips/retrotv", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache")
+		_, _ = w.Write(retrotvHTML)
 	})
 
 	mux.HandleFunc("/clips/ws", func(w http.ResponseWriter, r *http.Request) {
