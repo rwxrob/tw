@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/rwxrob/bonzai"
+	"github.com/rwxrob/tw/internal/twitch"
 )
 
 var Cmd = &bonzai.Cmd{
@@ -26,7 +27,11 @@ func run(x *bonzai.Cmd, args ...string) error {
 	topicsFile := getTopicsFile()
 
 	if len(args) == 0 {
-		fmt.Println(readLine1(topicsFile))
+		topic := readLine1(topicsFile)
+		fmt.Println(topic)
+		if cat := twitchCategory(); cat != "" {
+			fmt.Printf("category: %s\n", cat)
+		}
 		return nil
 	}
 
@@ -154,14 +159,5 @@ func updateGitHubStatus(topic string) {
 	}
 }
 
-func twitchToken() string {
-	if v := os.Getenv("TWITCH_TOKEN"); v != "" {
-		return v
-	}
-	path := filepath.Join(os.Getenv("HOME"), ".config", "twitch", "token")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(data))
-}
+func twitchToken() string  { return twitch.Token() }
+func twitchCategory() string { return twitch.Category() }

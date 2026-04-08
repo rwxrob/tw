@@ -1,10 +1,7 @@
 package what
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/rwxrob/bonzai"
+	"github.com/rwxrob/tw/internal/twitch"
 )
 
 var Cmd = &bonzai.Cmd{
@@ -28,9 +26,8 @@ func run(x *bonzai.Cmd, args ...string) error {
 	fmt.Println(topic)
 	copyToClipboard(topic)
 
-	category := twitchCategory()
-	if category != "" {
-		fmt.Printf("category: %s\n", category)
+	if cat := twitch.Category(); cat != "" {
+		fmt.Printf("category: %s\n", cat)
 	}
 
 	return nil
@@ -75,55 +72,4 @@ func copyToClipboard(text string) {
 	}
 	cmd.Stdin = strings.NewReader(text)
 	_ = cmd.Run()
-}
-
-func twitchCategory() string {
-	broadcasterID := os.Getenv("TWITCH_BROADCASTER_ID")
-	if broadcasterID == "" {
-		return ""
-	}
-	token := twitchToken()
-	if token == "" {
-		return ""
-	}
-	clientID := os.Getenv("TWITCH_CLIENT_ID")
-
-	req, err := http.NewRequest("GET",
-		"https://api.twitch.tv/helix/channels?broadcaster_id="+broadcasterID, nil)
-	if err != nil {
-		return ""
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	if clientID != "" {
-		req.Header.Set("Client-Id", clientID)
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-
-	var result struct {
-		Data []struct {
-			GameName string `json:"game_name"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(body, &result); err != nil || len(result.Data) == 0 {
-		return ""
-	}
-	return result.Data[0].GameName
-}
-
-func twitchToken() string {
-	if v := os.Getenv("TWITCH_TOKEN"); v != "" {
-		return v
-	}
-	path := filepath.Join(os.Getenv("HOME"), ".config", "twitch", "token")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(data))
 }
