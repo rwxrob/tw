@@ -42,9 +42,9 @@ type config struct {
 	clipsSyncInterval int
 	clipsScene        string
 	liveScene         string
-	liveSceneFile     string
-	belaboxRemoteKeyFile   string
-
+	liveSceneFile       string
+	belaboxStatsURLFile string
+	belaboxPoll         int
 }
 
 func loadConfig() *config {
@@ -66,7 +66,8 @@ func loadConfig() *config {
 	c.clipsScene = getenv("OBS_CLIPS_SCENE", "Clips")
 	c.liveScene = getenv("OBS_LIVE_SCENE", "IRL-Moblin")
 	c.liveSceneFile = getenv("OBS_LIVE_SCENE_FILE", filepath.Join(os.Getenv("HOME"), ".local", "state", "tw-live-scene"))
-	c.belaboxRemoteKeyFile = getenv("BELABOX_REMOTE_KEY_FILE", filepath.Join(os.Getenv("HOME"), ".config", "tw", "belabox-remote-key"))
+	c.belaboxStatsURLFile = getenv("BELABOX_STATS_URL_FILE", filepath.Join(os.Getenv("HOME"), ".config", "tw", "belabox-stats-url"))
+	c.belaboxPoll = envInt("BELABOX_POLL", 5)
 	if c.twitchBroadcaster == "" {
 		log.Printf("serve: TWITCH_BROADCASTER_ID not set; Twitch integration disabled")
 	}
