@@ -22,11 +22,12 @@ type obsMsg struct {
 }
 
 type obsState struct {
-	mu            sync.Mutex
-	currentScene  string
-	prevScene     string
-	debounceTimer *time.Timer
-	stableTimer   *time.Timer
+	mu              sync.Mutex
+	currentScene    string
+	prevScene       string
+	debounceTimer   *time.Timer
+	confirmTimer    *time.Timer // waits to confirm Belabox is truly up before starting stable timer
+	stableTimer     *time.Timer
 }
 
 func startOBS(cfg *config) {
@@ -204,7 +205,11 @@ func obsHandleEvent(cfg *config, state *obsState, c *websocket.Conn, d json.RawM
 		}
 		log.Printf("obs: belabox down")
 		state.mu.Lock()
-		// Cancel stable timer - Belabox went down again
+		// Cancel confirm and stable timers - Belabox went down again
+		if state.confirmTimer != nil {
+			state.confirmTimer.Stop()
+			state.confirmTimer = nil
+		}
 		if state.stableTimer != nil {
 			state.stableTimer.Stop()
 			state.stableTimer = nil
@@ -240,31 +245,39 @@ func obsHandleEvent(cfg *config, state *obsState, c *websocket.Conn, d json.RawM
 		if data.InputName != cfg.belaboxSource {
 			return
 		}
-		log.Printf("obs: belabox up")
+		log.Printf("obs: belabox started (confirming...)")
 		state.mu.Lock()
-		if state.currentScene == cfg.clipsScene && state.prevScene != "" {
-			// On clips scene: start stable timer to restore
-			if state.stableTimer != nil {
-				state.stableTimer.Stop()
-			}
-			targetScene := state.prevScene
-			log.Printf("obs: belabox stable timer %ds; will restore to %s", cfg.belaboxStable, targetScene)
-			state.stableTimer = time.AfterFunc(time.Duration(cfg.belaboxStable)*time.Second, func() {
-				state.mu.Lock()
-				state.stableTimer = nil
-				state.prevScene = ""
-				state.mu.Unlock()
-				obsSendRequest(c, "SetCurrentProgramScene", map[string]any{"sceneName": targetScene})
-				log.Printf("obs: belabox stable; restored to %s", targetScene)
-			})
-		} else {
-			// Not on clips scene: cancel debounce timer (Belabox came back before switch)
-			if state.debounceTimer != nil {
+		// Restart confirm window — PlaybackStarted fires on every reconnect attempt.
+		// Only trust it if no PlaybackEnded arrives within 2s.
+		if state.confirmTimer != nil {
+			state.confirmTimer.Stop()
+		}
+		snapScene := state.currentScene
+		snapPrev := state.prevScene
+		state.confirmTimer = time.AfterFunc(2*time.Second, func() {
+			state.mu.Lock()
+			state.confirmTimer = nil
+			if snapScene == cfg.clipsScene && snapPrev != "" {
+				if state.stableTimer != nil {
+					state.stableTimer.Stop()
+				}
+				targetScene := snapPrev
+				log.Printf("obs: belabox confirmed up; stable timer %ds; will restore to %s", cfg.belaboxStable, targetScene)
+				state.stableTimer = time.AfterFunc(time.Duration(cfg.belaboxStable)*time.Second, func() {
+					state.mu.Lock()
+					state.stableTimer = nil
+					state.prevScene = ""
+					state.mu.Unlock()
+					obsSendRequest(c, "SetCurrentProgramScene", map[string]any{"sceneName": targetScene})
+					log.Printf("obs: belabox stable; restored to %s", targetScene)
+				})
+			} else if state.debounceTimer != nil {
 				state.debounceTimer.Stop()
 				state.debounceTimer = nil
-				log.Printf("obs: belabox restored before switch; debounce cancelled")
+				log.Printf("obs: belabox confirmed up before switch; debounce cancelled")
 			}
-		}
+			state.mu.Unlock()
+		})
 		state.mu.Unlock()
 	}
 }
