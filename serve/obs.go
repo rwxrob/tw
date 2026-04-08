@@ -218,11 +218,11 @@ func obsHandleResponse(cfg *config, state *obsState, c *obsConn, d json.RawMessa
 				})
 			}
 		} else {
-			if state.stableTimer != nil {
-				state.stableTimer.Stop()
-				state.stableTimer = nil
-			}
 			if state.currentScene != "" && state.currentScene != cfg.clipsScene {
+				if state.stableTimer != nil {
+					state.stableTimer.Stop()
+					state.stableTimer = nil
+				}
 				prevScene := state.currentScene
 				state.prevScene = prevScene
 				_ = os.MkdirAll(filepath.Dir(cfg.liveSceneFile), 0755)
@@ -232,6 +232,7 @@ func obsHandleResponse(cfg *config, state *obsState, c *obsConn, d json.RawMessa
 				c.send("SetCurrentProgramScene", map[string]any{"sceneName": cfg.clipsScene})
 				return
 			}
+			// already on Clips: leave stable timer running through brief not-playing blips
 		}
 		state.mu.Unlock()
 	}
