@@ -3,11 +3,9 @@ package category
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -54,7 +52,6 @@ func run(x *bonzai.Cmd, args ...string) error {
 		return fmt.Errorf("category: no categories in %s", catFile)
 	}
 
-	// Deduplicate by name (keep first occurrence)
 	seen := map[string]bool{}
 	var deduped []entry
 	for _, e := range entries {
@@ -70,57 +67,18 @@ func run(x *bonzai.Cmd, args ...string) error {
 		return nil // user cancelled
 	}
 
-	gameID := entries[idx].gameID
-
-	return patchTwitchCategory(gameID)
-}
-
-func patchTwitchCategory(gameID string) error {
+	selected := entries[idx]
 	broadcasterID := os.Getenv("TWITCH_BROADCASTER_ID")
 	if broadcasterID == "" {
 		return fmt.Errorf("category: TWITCH_BROADCASTER_ID not set")
 	}
-	token := twitchToken()
-	if token == "" {
-		return fmt.Errorf("category: no twitch token")
-	}
-	clientID := os.Getenv("TWITCH_CLIENT_ID")
 
-	body, _ := json.Marshal(map[string]string{"game_id": gameID})
-	req, err := http.NewRequest("PATCH",
-		"https://api.twitch.tv/helix/channels?broadcaster_id="+broadcasterID,
-		bytes.NewReader(body))
+	out, err := exec.Command("twitch", "api", "patch", "channels",
+		"-q", "broadcaster_id="+broadcasterID,
+		"-b", `{"game_id":"`+selected.gameID+`"}`).CombinedOutput()
 	if err != nil {
-		return err
+		return fmt.Errorf("category: twitch api patch failed: %s", out)
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
-	if clientID != "" {
-		req.Header.Set("Client-Id", clientID)
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 300 {
-		b, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("category: twitch patch failed (%d): %s", resp.StatusCode, b)
-	}
-
-	fmt.Printf("category: set to game_id=%s\n", gameID)
+	fmt.Printf("category: set to %s\n", selected.name)
 	return nil
-}
-
-func twitchToken() string {
-	if v := os.Getenv("TWITCH_TOKEN"); v != "" {
-		return v
-	}
-	path := filepath.Join(os.Getenv("HOME"), ".config", "twitch", "token")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(data))
 }
