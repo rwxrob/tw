@@ -1,11 +1,7 @@
 package topic
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -111,38 +107,14 @@ func updateTwitchTitle(title string) {
 	if broadcasterID == "" {
 		return
 	}
-	token := twitchToken()
-	if token == "" {
-		return
-	}
-	clientID := os.Getenv("TWITCH_CLIENT_ID")
-
 	if len(title) > 140 {
 		title = title[:140]
 	}
-
-	body, _ := json.Marshal(map[string]string{"title": title})
-	req, err := http.NewRequest("PATCH",
-		"https://api.twitch.tv/helix/channels?broadcaster_id="+broadcasterID,
-		bytes.NewReader(body))
+	out, err := exec.Command("twitch", "api", "patch", "channels",
+		"-q", "broadcaster_id="+broadcasterID,
+		"-b", `{"title":"`+title+`"}`).CombinedOutput()
 	if err != nil {
-		return
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
-	if clientID != "" {
-		req.Header.Set("Client-Id", clientID)
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "topic: twitch update error: %v\n", err)
-		return
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 300 {
-		b, _ := io.ReadAll(resp.Body)
-		fmt.Fprintf(os.Stderr, "topic: twitch update failed (%d): %s\n", resp.StatusCode, b)
+		fmt.Fprintf(os.Stderr, "topic: twitch update failed: %s\n", out)
 	}
 }
 
@@ -159,5 +131,4 @@ func updateGitHubStatus(topic string) {
 	}
 }
 
-func twitchToken() string  { return twitch.Token() }
 func twitchCategory() string { return twitch.Category() }

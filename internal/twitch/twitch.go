@@ -2,56 +2,47 @@ package twitch
 
 import (
 	"encoding/json"
-	"io"
-	"net/http"
 	"os"
-	"path/filepath"
-	"strings"
+	"os/exec"
 )
 
-func Token() string {
-	if v := os.Getenv("TWITCH_TOKEN"); v != "" {
-		return v
+func channelInfo() map[string]any {
+	broadcasterID := os.Getenv("TWITCH_BROADCASTER_ID")
+	if broadcasterID == "" {
+		return nil
 	}
-	path := filepath.Join(os.Getenv("HOME"), ".config", "twitch", "token")
-	data, err := os.ReadFile(path)
+	out, err := exec.Command("twitch", "api", "get", "/channels",
+		"-q", "broadcaster_id="+broadcasterID).Output()
 	if err != nil {
-		return ""
+		return nil
 	}
-	return strings.TrimSpace(string(data))
+	var result struct {
+		Data []map[string]any `json:"data"`
+	}
+	if err := json.Unmarshal(out, &result); err != nil || len(result.Data) == 0 {
+		return nil
+	}
+	return result.Data[0]
 }
 
 func Category() string {
-	broadcasterID := os.Getenv("TWITCH_BROADCASTER_ID")
-	if broadcasterID == "" {
+	info := channelInfo()
+	if info == nil {
 		return ""
 	}
-	token := Token()
-	if token == "" {
+	if v, ok := info["game_name"].(string); ok {
+		return v
+	}
+	return ""
+}
+
+func Title() string {
+	info := channelInfo()
+	if info == nil {
 		return ""
 	}
-	req, err := http.NewRequest("GET",
-		"https://api.twitch.tv/helix/channels?broadcaster_id="+broadcasterID, nil)
-	if err != nil {
-		return ""
+	if v, ok := info["title"].(string); ok {
+		return v
 	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	if id := os.Getenv("TWITCH_CLIENT_ID"); id != "" {
-		req.Header.Set("Client-Id", id)
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	var result struct {
-		Data []struct {
-			GameName string `json:"game_name"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(body, &result); err != nil || len(result.Data) == 0 {
-		return ""
-	}
-	return result.Data[0].GameName
+	return ""
 }

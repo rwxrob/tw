@@ -2,13 +2,9 @@ package serve
 
 import (
 	"encoding/json"
-	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
-	"path/filepath"
-	"strings"
+	"os/exec"
 	"time"
 )
 
@@ -26,29 +22,8 @@ func startTwitchPoller(cfg *config) {
 }
 
 func twitchPollOnce(cfg *config) error {
-	token := twitchToken()
-	if token == "" {
-		return fmt.Errorf("no twitch token available")
-	}
-	clientID := os.Getenv("TWITCH_CLIENT_ID")
-
-	url := "https://api.twitch.tv/helix/channels?broadcaster_id=" + cfg.twitchBroadcaster
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	if clientID != "" {
-		req.Header.Set("Client-Id", clientID)
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
+	out, err := exec.Command("twitch", "api", "get", "/channels",
+		"-q", "broadcaster_id="+cfg.twitchBroadcaster).Output()
 	if err != nil {
 		return err
 	}
@@ -58,7 +33,7 @@ func twitchPollOnce(cfg *config) error {
 			Title string `json:"title"`
 		} `json:"data"`
 	}
-	if err := json.Unmarshal(body, &result); err != nil {
+	if err := json.Unmarshal(out, &result); err != nil {
 		return err
 	}
 	if len(result.Data) == 0 {
@@ -73,18 +48,6 @@ func twitchPollOnce(cfg *config) error {
 
 	log.Printf("twitch: title changed to: %s", title)
 	return writeTopics(cfg.topicsFile, title, current)
-}
-
-func twitchToken() string {
-	if v := os.Getenv("TWITCH_TOKEN"); v != "" {
-		return v
-	}
-	path := filepath.Join(os.Getenv("HOME"), ".config", "twitch", "token")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(data))
 }
 
 func writeTopics(path, current, previous string) error {
