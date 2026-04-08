@@ -1,0 +1,35 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;background:#000;overflow:hidden}
+video{width:100%;height:100%;object-fit:contain}
+</style></head>
+<body>
+<video id="v" autoplay></video>
+<script>
+const v = document.getElementById('v');
+let ws;
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(proto + '//' + location.host + '/clips/ws');
+  ws.onmessage = function(e) {
+    const msg = JSON.parse(e.data);
+    if (msg.src) { v.src = msg.src; v.play().catch(function(){}); }
+  };
+  ws.onclose = function() { setTimeout(connect, 2000); };
+  ws.onerror = function() { ws.close(); };
+}
+
+function next() {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({event:'ended'}));
+  }
+}
+
+v.addEventListener('ended', next);
+v.addEventListener('error', next);
+
+connect();
+</script>
+</body></html>

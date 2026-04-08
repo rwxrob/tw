@@ -226,14 +226,6 @@ func obsHandleEvent(cfg *config, state *obsState, c *websocket.Conn, d json.RawM
 				state.debounceTimer = nil
 				state.mu.Unlock()
 				obsSendRequest(c, "SetCurrentProgramScene", map[string]any{"sceneName": cfg.clipsScene})
-				obsSendRequest(c, "SetInputSettings", map[string]any{
-					"inputName":     cfg.vlcSource,
-					"inputSettings": map[string]any{"shuffle": true},
-				})
-				obsSendRequest(c, "TriggerMediaInputAction", map[string]any{
-					"inputName":   cfg.vlcSource,
-					"mediaAction": "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART",
-				})
 				log.Printf("obs: belabox debounce fired; switched to %s", cfg.clipsScene)
 			})
 		}

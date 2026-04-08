@@ -44,8 +44,7 @@ type config struct {
 	belaboxSource     string
 	belaboxDebounce   int
 	belaboxStable     int
-	vlcSource         string
-	clipsReward       string
+
 }
 
 func loadConfig() *config {
@@ -70,9 +69,6 @@ func loadConfig() *config {
 	c.belaboxSource = getenv("OBS_BELABOX_SOURCE", "Belabox")
 	c.belaboxDebounce = envInt("OBS_BELABOX_DEBOUNCE", 3)
 	c.belaboxStable = envInt("OBS_BELABOX_STABLE", 3)
-	c.vlcSource = getenv("OBS_VLC_SOURCE", "VLC Video")
-	c.clipsReward = getenv("OBS_CLIPS_REWARD", "play clip")
-
 	if c.twitchBroadcaster == "" {
 		log.Printf("serve: TWITCH_BROADCASTER_ID not set; Twitch integration disabled")
 	}

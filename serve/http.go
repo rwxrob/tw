@@ -143,6 +143,8 @@ func startHTTP(cfg *config) {
 		_, _ = w.Write([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"><circle cx="9" cy="9" r="9" fill="#9146ff"/></svg>`))
 	})
 
+	registerClipsRoutes(cfg, mux)
+
 	addr := ":" + cfg.port
 	log.Printf("http: listening on %s (overlay at /overlay)", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
