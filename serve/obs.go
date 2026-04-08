@@ -169,7 +169,8 @@ func obsWatchBelabox(ctx context.Context, cfg *config, state *obsState, c *obsCo
 				state.mu.Lock()
 			}
 		} else {
-			if state.currentScene != "" && state.currentScene != cfg.clipsScene {
+			if state.currentScene != "" && state.currentScene != cfg.clipsScene &&
+				strings.HasPrefix(state.currentScene, "IRL") {
 				state.prevScene = state.currentScene
 				_ = os.MkdirAll(filepath.Dir(cfg.liveSceneFile), 0755)
 				_ = os.WriteFile(cfg.liveSceneFile, []byte(state.currentScene+"\n"), 0644)
