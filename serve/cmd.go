@@ -64,7 +64,7 @@ func loadConfig() *config {
 	c.clipsDir = getenv("CLIPS_DIR", filepath.Join(os.Getenv("HOME"), vidDir, "twclips"))
 	c.clipsSyncInterval = envInt("CLIPS_SYNC_INTERVAL", 3600)
 	c.clipsScene = getenv("OBS_CLIPS_SCENE", "Clips")
-	c.liveScene = getenv("OBS_LIVE_SCENE", "IRL-Moblin")
+	c.liveScene = getenv("OBS_LIVE_SCENE", "IRL - Moblin")
 	c.liveSceneFile = getenv("OBS_LIVE_SCENE_FILE", filepath.Join(os.Getenv("HOME"), ".local", "state", "tw-live-scene"))
 	c.belaboxStatsURLFile = getenv("BELABOX_STATS_URL_FILE", filepath.Join(os.Getenv("HOME"), ".config", "tw", "belabox-stats-url"))
 	c.belaboxPoll = envInt("BELABOX_POLL", 5)
