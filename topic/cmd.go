@@ -123,7 +123,7 @@ func updateTwitchTitle(title string) {
 	out, err := exec.Command("twitch", "api", "patch", "channels",
 		"-q", "broadcaster_id="+broadcasterID,
 		"-b", `{"title":"`+title+`"}`).CombinedOutput()
-	if err != nil {
+	if err != nil && strings.Contains(string(out), `"error"`) {
 		fmt.Fprintf(os.Stderr, "topic: twitch update failed: %s\n", out)
 	}
 }

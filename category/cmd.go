@@ -76,7 +76,7 @@ func run(x *bonzai.Cmd, args ...string) error {
 	out, err := exec.Command("twitch", "api", "patch", "channels",
 		"-q", "broadcaster_id="+broadcasterID,
 		"-b", `{"game_id":"`+selected.gameID+`"}`).CombinedOutput()
-	if err != nil {
+	if err != nil && strings.Contains(string(out), `"error"`) {
 		return fmt.Errorf("category: twitch api patch failed: %s", out)
 	}
 	fmt.Printf("category: set to %s\n", selected.name)

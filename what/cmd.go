@@ -27,7 +27,7 @@ func run(x *bonzai.Cmd, args ...string) error {
 	copyToClipboard(topic)
 
 	if cat := twitch.Category(); cat != "" {
-		fmt.Printf("category: %s\n", cat)
+		fmt.Println(cat)
 	}
 
 	return nil
