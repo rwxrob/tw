@@ -29,29 +29,48 @@ func run(x *bonzai.Cmd, args ...string) error {
 		return fmt.Errorf("category: cannot read %s: %w", catFile, err)
 	}
 
-	var lines []string
+	type entry struct {
+		name   string
+		gameID string
+	}
+	var entries []entry
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	for scanner.Scan() {
 		line := scanner.Text()
-		if line != "" {
-			lines = append(lines, line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.Split(line, "\t")
+		if len(parts) < 3 {
+			continue
+		}
+		name := strings.TrimSpace(parts[1])
+		gameID := strings.TrimSpace(parts[2])
+		if name != "" && gameID != "" {
+			entries = append(entries, entry{name, gameID})
 		}
 	}
-	if len(lines) == 0 {
+	if len(entries) == 0 {
 		return fmt.Errorf("category: no categories in %s", catFile)
 	}
 
-	idx, err := fuzzyfinder.Find(lines, func(i int) string { return lines[i] })
+	// Deduplicate by name (keep first occurrence)
+	seen := map[string]bool{}
+	var deduped []entry
+	for _, e := range entries {
+		if !seen[e.name] {
+			seen[e.name] = true
+			deduped = append(deduped, e)
+		}
+	}
+	entries = deduped
+
+	idx, err := fuzzyfinder.Find(entries, func(i int) string { return entries[i].name })
 	if err != nil {
 		return nil // user cancelled
 	}
 
-	selected := lines[idx]
-	parts := strings.Split(selected, "\t")
-	if len(parts) < 2 {
-		return fmt.Errorf("category: invalid format: %s", selected)
-	}
-	gameID := strings.TrimSpace(parts[1])
+	gameID := entries[idx].gameID
 
 	return patchTwitchCategory(gameID)
 }
