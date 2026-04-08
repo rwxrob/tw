@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/ktr0731/go-fuzzyfinder"
@@ -88,7 +89,30 @@ func setTopic(path, newTopic string) error {
 	updateGitHubStatus(newTopic)
 
 	fmt.Println(newTopic)
+	if cat := twitch.Category(); cat != "" {
+		fmt.Println(cat)
+	}
+	copyToClipboard(newTopic)
 	return nil
+}
+
+func copyToClipboard(text string) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("pbcopy")
+	default:
+		if _, err := exec.LookPath("xclip"); err == nil {
+			cmd = exec.Command("xclip", "-selection", "clipboard")
+		} else if _, err := exec.LookPath("xsel"); err == nil {
+			cmd = exec.Command("xsel", "--clipboard", "--input")
+		}
+	}
+	if cmd == nil {
+		return
+	}
+	cmd.Stdin = strings.NewReader(text)
+	_ = cmd.Run()
 }
 
 func writeTopics(path, newTopic string) error {
