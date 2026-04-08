@@ -50,7 +50,7 @@ func startBelabox(cfg *config, bs *belaboxLiveState) {
 	ticker := time.NewTicker(time.Duration(cfg.belaboxPoll) * time.Second)
 	defer ticker.Stop()
 	for range ticker.C {
-		live := belaboxFetch(url)
+		live := belaboxFetch(url, cfg.clipsBitrateThreshold)
 		bs.set(live)
 	}
 }
@@ -63,7 +63,7 @@ func belaboxLoadURL(path string) string {
 	return strings.TrimSpace(string(data))
 }
 
-func belaboxFetch(url string) bool {
+func belaboxFetch(url string, bitrateThreshold int) bool {
 	resp, err := http.Get(url) //nolint
 	if err != nil {
 		log.Printf("belabox: fetch error: %v", err)
@@ -84,7 +84,7 @@ func belaboxFetch(url string) bool {
 
 	for name, pub := range data.Publishers {
 		log.Printf("belabox: %s connected=%v bitrate=%d", name, pub.Connected, pub.Bitrate)
-		if pub.Connected && pub.Bitrate > 0 {
+		if pub.Connected && pub.Bitrate >= bitrateThreshold {
 			return true
 		}
 	}
