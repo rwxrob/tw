@@ -72,14 +72,15 @@ func readLine2(path string) string {
 }
 
 func swapTopics(path string) error {
-	line1 := readLine1(path)
 	line2 := readLine2(path)
-	return writeTopics(path, line2, line1)
+	if line2 == "" {
+		return fmt.Errorf("topic: no previous topic to swap to")
+	}
+	return setTopic(path, line2)
 }
 
 func setTopic(path, newTopic string) error {
-	old := readLine1(path)
-	if err := writeTopics(path, newTopic, old); err != nil {
+	if err := writeTopics(path, newTopic); err != nil {
 		return err
 	}
 
@@ -90,8 +91,20 @@ func setTopic(path, newTopic string) error {
 	return nil
 }
 
-func writeTopics(path, current, previous string) error {
-	content := current + "\n" + previous + "\n"
+func writeTopics(path, newTopic string) error {
+	// Read existing lines, dedupe, prepend new topic
+	var existing []string
+	if data, err := os.ReadFile(path); err == nil {
+		scanner := bufio.NewScanner(strings.NewReader(string(data)))
+		for scanner.Scan() {
+			line := strings.TrimRight(scanner.Text(), "\r")
+			if line != "" && line != newTopic {
+				existing = append(existing, line)
+			}
+		}
+	}
+	lines := append([]string{newTopic}, existing...)
+	content := strings.Join(lines, "\n") + "\n"
 	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, []byte(content), 0644); err != nil {
 		return err
