@@ -1,6 +1,7 @@
 package serve
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -21,13 +22,39 @@ type obsMsg struct {
 	D  json.RawMessage `json:"d"`
 }
 
+// obsConn wraps the websocket with a write mutex so timer goroutines and
+// the poll goroutine can all safely send without racing.
+type obsConn struct {
+	mu sync.Mutex
+	ws *websocket.Conn
+}
+
+func (c *obsConn) send(reqType string, reqData map[string]any) {
+	msg, err := json.Marshal(map[string]any{
+		"op": 6,
+		"d": map[string]any{
+			"requestType": reqType,
+			"requestId":   reqType,
+			"requestData": reqData,
+		},
+	})
+	if err != nil {
+		log.Printf("obs: marshal error: %v", err)
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err := c.ws.WriteMessage(websocket.TextMessage, msg); err != nil {
+		log.Printf("obs: write error for %s: %v", reqType, err)
+	}
+}
+
 type obsState struct {
-	mu              sync.Mutex
-	currentScene    string
-	prevScene       string
-	debounceTimer   *time.Timer
-	confirmTimer    *time.Timer // waits to confirm Belabox is truly up before starting stable timer
-	stableTimer     *time.Timer
+	mu            sync.Mutex
+	currentScene  string
+	prevScene     string
+	debounceTimer *time.Timer
+	stableTimer   *time.Timer
 }
 
 func startOBS(cfg *config) {
@@ -42,14 +69,15 @@ func startOBS(cfg *config) {
 func obsConnect(cfg *config) error {
 	password := obsLoadPassword(cfg.obsWSPasswordFile)
 
-	c, _, err := websocket.DefaultDialer.Dial(cfg.obsWSURL, nil)
+	ws, _, err := websocket.DefaultDialer.Dial(cfg.obsWSURL, nil)
 	if err != nil {
 		return err
 	}
-	defer c.Close()
+	c := &obsConn{ws: ws}
+	defer ws.Close()
 
 	// Read Hello (op:0)
-	_, raw, err := c.ReadMessage()
+	_, raw, err := ws.ReadMessage()
 	if err != nil {
 		return err
 	}
@@ -64,7 +92,8 @@ func obsConnect(cfg *config) error {
 		Authentication     string `json:"authentication,omitempty"`
 		EventSubscriptions int    `json:"eventSubscriptions"`
 	}
-	id := identifyData{RpcVersion: 1, EventSubscriptions: 324}
+	// Scenes(4) + Outputs(64) — no longer need MediaInputs(256)
+	id := identifyData{RpcVersion: 1, EventSubscriptions: 68}
 
 	var helloD struct {
 		Authentication *struct {
@@ -78,12 +107,15 @@ func obsConnect(cfg *config) error {
 	}
 
 	identMsg, _ := json.Marshal(map[string]any{"op": 1, "d": id})
-	if err := c.WriteMessage(websocket.TextMessage, identMsg); err != nil {
+	c.mu.Lock()
+	err = ws.WriteMessage(websocket.TextMessage, identMsg)
+	c.mu.Unlock()
+	if err != nil {
 		return err
 	}
 
 	// Read Identified (op:2)
-	_, raw, err = c.ReadMessage()
+	_, raw, err = ws.ReadMessage()
 	if err != nil {
 		return err
 	}
@@ -96,24 +128,16 @@ func obsConnect(cfg *config) error {
 	}
 	log.Printf("obs: connected to %s", cfg.obsWSURL)
 
-	// Send GetCurrentProgramScene request
-	reqMsg, _ := json.Marshal(map[string]any{
-		"op": 6,
-		"d": map[string]any{
-			"requestType": "GetCurrentProgramScene",
-			"requestId":   "init-scene",
-			"requestData": map[string]any{},
-		},
-	})
-	if err := c.WriteMessage(websocket.TextMessage, reqMsg); err != nil {
-		return err
-	}
+	c.send("GetCurrentProgramScene", map[string]any{})
 
 	state := &obsState{}
 
-	// Event loop
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go obsPollBelabox(ctx, cfg, state, c)
+
 	for {
-		_, raw, err := c.ReadMessage()
+		_, raw, err := ws.ReadMessage()
 		if err != nil {
 			return err
 		}
@@ -121,7 +145,6 @@ func obsConnect(cfg *config) error {
 		if err := json.Unmarshal(raw, &msg); err != nil {
 			continue
 		}
-
 		switch msg.Op {
 		case 7:
 			obsHandleResponse(cfg, state, c, msg.D)
@@ -131,35 +154,100 @@ func obsConnect(cfg *config) error {
 	}
 }
 
-func obsHandleResponse(cfg *config, state *obsState, c *websocket.Conn, d json.RawMessage) {
-	var resp struct {
-		RequestType  string `json:"requestType"`
-		ResponseData struct {
-			CurrentProgramSceneName string `json:"currentProgramSceneName"`
-		} `json:"responseData"`
-	}
-	if err := json.Unmarshal(d, &resp); err != nil {
-		return
-	}
-	if resp.RequestType != "GetCurrentProgramScene" {
-		return
-	}
-
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	state.currentScene = resp.ResponseData.CurrentProgramSceneName
-	log.Printf("obs: current scene: %s", state.currentScene)
-
-	if state.currentScene == cfg.clipsScene && state.prevScene == "" {
-		if data, err := os.ReadFile(cfg.liveSceneFile); err == nil {
-			state.prevScene = strings.TrimSpace(string(data))
-		} else {
-			state.prevScene = cfg.liveScene
+func obsPollBelabox(ctx context.Context, cfg *config, state *obsState, c *obsConn) {
+	ticker := time.NewTicker(time.Duration(cfg.belaboxPoll) * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			c.send("GetMediaInputStatus", map[string]any{"inputName": cfg.belaboxSource})
 		}
 	}
 }
 
-func obsHandleEvent(cfg *config, state *obsState, c *websocket.Conn, d json.RawMessage) {
+func obsHandleResponse(cfg *config, state *obsState, c *obsConn, d json.RawMessage) {
+	var resp struct {
+		RequestType  string          `json:"requestType"`
+		ResponseData json.RawMessage `json:"responseData"`
+	}
+	if err := json.Unmarshal(d, &resp); err != nil {
+		return
+	}
+
+	switch resp.RequestType {
+	case "GetCurrentProgramScene":
+		var data struct {
+			CurrentProgramSceneName string `json:"currentProgramSceneName"`
+		}
+		if err := json.Unmarshal(resp.ResponseData, &data); err != nil {
+			return
+		}
+		state.mu.Lock()
+		defer state.mu.Unlock()
+		state.currentScene = data.CurrentProgramSceneName
+		log.Printf("obs: current scene: %s", state.currentScene)
+		if state.currentScene == cfg.clipsScene && state.prevScene == "" {
+			if raw, err := os.ReadFile(cfg.liveSceneFile); err == nil {
+				state.prevScene = strings.TrimSpace(string(raw))
+			} else {
+				state.prevScene = cfg.liveScene
+			}
+		}
+
+	case "GetMediaInputStatus":
+		var data struct {
+			MediaState string `json:"mediaState"`
+		}
+		if err := json.Unmarshal(resp.ResponseData, &data); err != nil {
+			return
+		}
+		playing := data.MediaState == "OBS_MEDIA_STATE_PLAYING"
+		state.mu.Lock()
+		if playing {
+			if state.debounceTimer != nil {
+				state.debounceTimer.Stop()
+				state.debounceTimer = nil
+				log.Printf("obs: belabox playing; debounce cancelled")
+			}
+			if state.currentScene == cfg.clipsScene && state.prevScene != "" && state.stableTimer == nil {
+				targetScene := state.prevScene
+				log.Printf("obs: belabox playing on clips; stable timer %ds before restoring %s", cfg.belaboxStable, targetScene)
+				state.stableTimer = time.AfterFunc(time.Duration(cfg.belaboxStable)*time.Second, func() {
+					state.mu.Lock()
+					state.stableTimer = nil
+					state.prevScene = ""
+					state.mu.Unlock()
+					c.send("SetCurrentProgramScene", map[string]any{"sceneName": targetScene})
+					log.Printf("obs: belabox stable; restored to %s", targetScene)
+				})
+			}
+		} else {
+			if state.stableTimer != nil {
+				state.stableTimer.Stop()
+				state.stableTimer = nil
+			}
+			if state.debounceTimer == nil && state.currentScene != "" && state.currentScene != cfg.clipsScene {
+				prevScene := state.currentScene
+				state.prevScene = prevScene
+				_ = os.MkdirAll(filepath.Dir(cfg.liveSceneFile), 0755)
+				_ = os.WriteFile(cfg.liveSceneFile, []byte(prevScene+"\n"), 0644)
+				log.Printf("obs: belabox %s; debounce %ds before switching to %s", data.MediaState, cfg.belaboxDebounce, cfg.clipsScene)
+				state.debounceTimer = time.AfterFunc(time.Duration(cfg.belaboxDebounce)*time.Second, func() {
+					state.mu.Lock()
+					state.debounceTimer = nil
+					state.mu.Unlock()
+					c.send("SetCurrentProgramScene", map[string]any{"sceneName": cfg.clipsScene})
+					log.Printf("obs: debounce fired; switched to %s", cfg.clipsScene)
+				})
+			}
+		}
+		state.mu.Unlock()
+	}
+}
+
+func obsHandleEvent(cfg *config, state *obsState, c *obsConn, d json.RawMessage) {
 	var ev struct {
 		EventType string          `json:"eventType"`
 		EventData json.RawMessage `json:"eventData"`
@@ -192,111 +280,6 @@ func obsHandleEvent(cfg *config, state *obsState, c *websocket.Conn, d json.RawM
 		if data.OutputPath != "" {
 			obsRenameRecording(cfg, data.OutputPath)
 		}
-
-	case "MediaInputPlaybackEnded":
-		var data struct {
-			InputName string `json:"inputName"`
-		}
-		if err := json.Unmarshal(ev.EventData, &data); err != nil {
-			return
-		}
-		if data.InputName != cfg.belaboxSource {
-			return
-		}
-		log.Printf("obs: belabox down")
-		state.mu.Lock()
-		// Cancel confirm and stable timers - Belabox went down again
-		if state.confirmTimer != nil {
-			state.confirmTimer.Stop()
-			state.confirmTimer = nil
-		}
-		if state.stableTimer != nil {
-			state.stableTimer.Stop()
-			state.stableTimer = nil
-		}
-		// Start debounce timer only if not already running and not on clips scene
-		if state.debounceTimer == nil && state.currentScene != cfg.clipsScene {
-			prevScene := state.currentScene
-			state.prevScene = prevScene
-			_ = os.MkdirAll(filepath.Dir(cfg.liveSceneFile), 0755)
-			_ = os.WriteFile(cfg.liveSceneFile, []byte(prevScene+"\n"), 0644)
-			log.Printf("obs: belabox ended; debounce %ds before switching to %s", cfg.belaboxDebounce, cfg.clipsScene)
-			state.debounceTimer = time.AfterFunc(time.Duration(cfg.belaboxDebounce)*time.Second, func() {
-				state.mu.Lock()
-				state.debounceTimer = nil
-				state.mu.Unlock()
-				obsSendRequest(c, "SetCurrentProgramScene", map[string]any{"sceneName": cfg.clipsScene})
-				log.Printf("obs: belabox debounce fired; switched to %s", cfg.clipsScene)
-			})
-		}
-		state.mu.Unlock()
-
-	case "MediaInputPlaybackStarted":
-		var data struct {
-			InputName string `json:"inputName"`
-		}
-		if err := json.Unmarshal(ev.EventData, &data); err != nil {
-			return
-		}
-		if data.InputName != cfg.belaboxSource {
-			return
-		}
-		log.Printf("obs: belabox started (confirming...)")
-		state.mu.Lock()
-		// Cancel debounce immediately — Belabox is trying to come up.
-		// If confirm fails (PlaybackEnded within 2s), debounce restarts then.
-		if state.debounceTimer != nil {
-			state.debounceTimer.Stop()
-			state.debounceTimer = nil
-			log.Printf("obs: debounce cancelled; belabox reconnecting")
-		}
-		// Restart confirm window — only trust PlaybackStarted if stable for 2s.
-		if state.confirmTimer != nil {
-			state.confirmTimer.Stop()
-		}
-		snapScene := state.currentScene
-		snapPrev := state.prevScene
-		state.confirmTimer = time.AfterFunc(2*time.Second, func() {
-			state.mu.Lock()
-			state.confirmTimer = nil
-			if snapScene == cfg.clipsScene && snapPrev != "" {
-				if state.stableTimer != nil {
-					state.stableTimer.Stop()
-				}
-				targetScene := snapPrev
-				log.Printf("obs: belabox confirmed up; stable timer %ds; will restore to %s", cfg.belaboxStable, targetScene)
-				state.stableTimer = time.AfterFunc(time.Duration(cfg.belaboxStable)*time.Second, func() {
-					state.mu.Lock()
-					state.stableTimer = nil
-					state.prevScene = ""
-					state.mu.Unlock()
-					obsSendRequest(c, "SetCurrentProgramScene", map[string]any{"sceneName": targetScene})
-					log.Printf("obs: belabox stable; restored to %s", targetScene)
-				})
-			} else {
-				log.Printf("obs: belabox confirmed up (already on live scene)")
-			}
-			state.mu.Unlock()
-		})
-		state.mu.Unlock()
-	}
-}
-
-func obsSendRequest(c *websocket.Conn, reqType string, reqData map[string]any) {
-	msg, err := json.Marshal(map[string]any{
-		"op": 6,
-		"d": map[string]any{
-			"requestType": reqType,
-			"requestId":   reqType,
-			"requestData": reqData,
-		},
-	})
-	if err != nil {
-		log.Printf("obs: marshal error: %v", err)
-		return
-	}
-	if err := c.WriteMessage(websocket.TextMessage, msg); err != nil {
-		log.Printf("obs: write error for %s: %v", reqType, err)
 	}
 }
 
