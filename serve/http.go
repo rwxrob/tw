@@ -132,15 +132,15 @@ func startHTTP(cfg *config) {
 		}
 	})
 
-	// GET /logo.jpg — serve ~/.config/tw/logo.jpg or SVG placeholder
+	// GET /logo.jpg — serve ~/.config/tw/logo.jpg or embedded fallback
 	mux.HandleFunc("/logo.jpg", func(w http.ResponseWriter, r *http.Request) {
 		logoPath := filepath.Join(os.Getenv("HOME"), ".config", "tw", "logo.jpg")
 		if _, err := os.Stat(logoPath); err == nil {
 			http.ServeFile(w, r, logoPath)
 			return
 		}
-		w.Header().Set("Content-Type", "image/svg+xml")
-		_, _ = w.Write([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"><circle cx="9" cy="9" r="9" fill="#9146ff"/></svg>`))
+		w.Header().Set("Content-Type", "image/jpeg")
+		_, _ = w.Write(obs.Logo)
 	})
 
 	registerClipsRoutes(cfg, mux)
