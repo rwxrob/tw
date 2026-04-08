@@ -1,12 +1,14 @@
 package topic
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/ktr0731/go-fuzzyfinder"
 	"github.com/rwxrob/bonzai"
 	"github.com/rwxrob/tw/internal/twitch"
 )
@@ -23,12 +25,7 @@ func run(x *bonzai.Cmd, args ...string) error {
 	topicsFile := getTopicsFile()
 
 	if len(args) == 0 {
-		topic := readLine1(topicsFile)
-		fmt.Println(topic)
-		if cat := twitchCategory(); cat != "" {
-			fmt.Printf("category: %s\n", cat)
-		}
-		return nil
+		return pickTopic(topicsFile)
 	}
 
 	arg := args[0]
@@ -129,6 +126,31 @@ func updateGitHubStatus(topic string) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		fmt.Fprintf(os.Stderr, "topic: github status update error: %v: %s\n", err, out)
 	}
+}
+
+func pickTopic(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("topic: cannot read %s: %w", path, err)
+	}
+	var lines []string
+	seen := map[string]bool{}
+	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	for scanner.Scan() {
+		line := strings.TrimRight(scanner.Text(), "\r")
+		if line != "" && !seen[line] {
+			seen[line] = true
+			lines = append(lines, line)
+		}
+	}
+	if len(lines) == 0 {
+		return fmt.Errorf("topic: no topics in %s", path)
+	}
+	idx, err := fuzzyfinder.Find(lines, func(i int) string { return lines[i] })
+	if err != nil {
+		return nil // cancelled
+	}
+	return setTopic(path, lines[idx])
 }
 
 func twitchCategory() string { return twitch.Category() }
