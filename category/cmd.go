@@ -8,10 +8,10 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/ktr0731/go-fuzzyfinder"
 	"github.com/rwxrob/bonzai"
 )
 
@@ -41,31 +41,12 @@ func run(x *bonzai.Cmd, args ...string) error {
 		return fmt.Errorf("category: no categories in %s", catFile)
 	}
 
-	// Use fzf to pick
-	fzfPath, err := exec.LookPath("fzf")
-	if err != nil {
-		// No fzf: print list and prompt
-		for i, l := range lines {
-			fmt.Printf("%d: %s\n", i+1, l)
-		}
-		return fmt.Errorf("category: fzf not found; install fzf to use this command")
-	}
-
-	input := strings.Join(lines, "\n")
-	cmd := exec.Command(fzfPath)
-	cmd.Stdin = strings.NewReader(input)
-	cmd.Stderr = os.Stderr
-	out, err := cmd.Output()
+	idx, err := fuzzyfinder.Find(lines, func(i int) string { return lines[i] })
 	if err != nil {
 		return nil // user cancelled
 	}
 
-	selected := strings.TrimSpace(string(out))
-	if selected == "" {
-		return nil
-	}
-
-	// Parse tab-separated: "Game Name\tgame_id\tkeywords..."
+	selected := lines[idx]
 	parts := strings.Split(selected, "\t")
 	if len(parts) < 2 {
 		return fmt.Errorf("category: invalid format: %s", selected)
