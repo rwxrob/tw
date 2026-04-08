@@ -6,6 +6,7 @@ import (
 	"github.com/rwxrob/tw/category"
 	"github.com/rwxrob/tw/clips"
 	"github.com/rwxrob/tw/serve"
+	"github.com/rwxrob/tw/token"
 	"github.com/rwxrob/tw/topic"
 	"github.com/rwxrob/tw/what"
 )
@@ -18,6 +19,6 @@ var Cmd = &bonzai.Cmd{
 	Name:  "tw",
 	Short: "twitch streaming automation",
 	Comp:  comp.Cmds,
-	Cmds:  []*bonzai.Cmd{serve.Cmd, topic.Cmd, category.Cmd, clips.Cmd, what.Cmd},
+	Cmds:  []*bonzai.Cmd{serve.Cmd, topic.Cmd, category.Cmd, clips.Cmd, what.Cmd, token.Cmd},
 	Def:   what.Cmd,
 }
