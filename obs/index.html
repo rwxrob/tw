@@ -72,12 +72,21 @@
     </div>
   </div>
   <script>
-    async function loadTopic() {
+    const el = document.getElementById('topic');
+
+    // SSE: instant push on every title change
+    const es = new EventSource('/events');
+    es.onmessage = e => { el.textContent = e.data.trim(); };
+
+    // Fallback poll in case SSE drops (OBS browser source quirk)
+    async function poll() {
       try {
         const r = await fetch('/');
-        document.getElementById('topic').textContent = (await r.text()).trim();
+        el.textContent = (await r.text()).trim();
       } catch (e) {}
     }
+    setInterval(poll, 5000);
+
     function updateDateTime() {
       document.getElementById('datetime').textContent = new Date().toLocaleString(undefined, {
         weekday: 'long', month: 'long', day: 'numeric',
@@ -86,8 +95,6 @@
     }
     updateDateTime();
     setInterval(updateDateTime, 1000);
-    loadTopic();
-    setInterval(loadTopic, 1000);
   </script>
 </body>
 </html>
