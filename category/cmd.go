@@ -3,7 +3,6 @@ package category
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/ktr0731/go-fuzzyfinder"
@@ -69,11 +68,8 @@ func run(x *bonzai.Cmd, args ...string) error {
 		return fmt.Errorf("category: cannot determine broadcaster ID")
 	}
 
-	out, err := exec.Command("twitch", "api", "patch", "channels",
-		"-q", "broadcaster_id="+broadcasterID,
-		"-b", fmt.Sprintf(`{"game_id":"%d"}`, selected.ID)).CombinedOutput()
-	if err != nil && strings.Contains(string(out), `"error"`) {
-		return fmt.Errorf("category: twitch api patch failed: %s", out)
+	if err := twitch.PatchChannels(broadcasterID, fmt.Sprintf(`{"game_id":"%d"}`, selected.ID)); err != nil {
+		return fmt.Errorf("category: %w", err)
 	}
 	fmt.Println(selected.Name)
 	return nil

@@ -13,6 +13,7 @@ import (
 
 	"github.com/rwxrob/bonzai"
 	"github.com/rwxrob/bonzai/cmds/help"
+	"github.com/rwxrob/tw/internal/twitch"
 )
 
 var Cmd = &bonzai.Cmd{
@@ -168,7 +169,7 @@ func loadConfig() *config {
 	c.topicsFile = getenv("TOPICS", getenv("TOPIC", filepath.Join(os.Getenv("HOME"), ".topics")))
 	c.port = getenv("PORT", "8080")
 	c.twitchBroadcaster = os.Getenv("TWITCH_BROADCASTER_ID")
-	c.twitchClientID, c.twitchToken = loadTwitchCreds()
+	c.twitchClientID, c.twitchToken = twitch.LoadCreds()
 	c.twitchPoll = envInt("TWITCH_POLL", 60)
 	c.obsWSURL = getenv("OBS_WS_URL", "ws://127.0.0.1:4455")
 	c.obsWSPasswordFile = getenv("OBS_WS_PASSWORD_FILE", filepath.Join(os.Getenv("HOME"), ".config", "obs-websocket", "password"))

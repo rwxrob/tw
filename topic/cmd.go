@@ -2,6 +2,7 @@ package topic
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -172,11 +173,8 @@ func updateTwitchTitle(title string) {
 	if len(title) > 140 {
 		title = title[:140]
 	}
-	out, err := exec.Command("twitch", "api", "patch", "channels",
-		"-q", "broadcaster_id="+broadcasterID,
-		"-b", `{"title":"`+title+`"}`).CombinedOutput()
-	if err != nil && strings.Contains(string(out), `"error"`) {
-		fmt.Fprintf(os.Stderr, "topic: twitch update failed: %s\n", out)
+	if err := twitch.PatchChannels(broadcasterID, `{"title":`+jsonString(title)+`}`); err != nil {
+		fmt.Fprintf(os.Stderr, "topic: twitch title update failed: %v\n", err)
 	}
 }
 
@@ -193,11 +191,8 @@ func updateTwitchCategoryForTopic(topic string) {
 	if broadcasterID == "" {
 		return
 	}
-	out, err := exec.Command("twitch", "api", "patch", "channels",
-		"-q", "broadcaster_id="+broadcasterID,
-		"-b", fmt.Sprintf(`{"game_id":"%d"}`, cat.ID)).CombinedOutput()
-	if err != nil && strings.Contains(string(out), `"error"`) {
-		fmt.Fprintf(os.Stderr, "topic: category update failed: %s\n", out)
+	if err := twitch.PatchChannels(broadcasterID, fmt.Sprintf(`{"game_id":"%d"}`, cat.ID)); err != nil {
+		fmt.Fprintf(os.Stderr, "topic: category update failed: %v\n", err)
 	}
 }
 
@@ -253,4 +248,9 @@ func fuzzyMatchTopic(path, keyword string) string {
 		}
 	}
 	return ""
+}
+
+func jsonString(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
 }
