@@ -18,7 +18,28 @@ var Cmd = &bonzai.Cmd{
 	Name:  "serve",
 	Alias: "s|d|daemon",
 	Short: "run all tw daemons (HTTP, OBS, Twitch, clips)",
-	Do:    run,
+	Cmds:  []*bonzai.Cmd{stopCmd},
+	Def:   &bonzai.Cmd{Do: run},
+}
+
+var stopCmd = &bonzai.Cmd{
+	Name:  "stop",
+	Short: "stop the running tw serve daemon",
+	Do: func(x *bonzai.Cmd, args ...string) error {
+		cfg := loadConfig()
+		pid := runningPID(cfg.pidFile)
+		if pid == 0 {
+			fmt.Println("serve: not running")
+			return nil
+		}
+		proc, _ := os.FindProcess(pid)
+		if err := proc.Signal(syscall.SIGTERM); err != nil {
+			return fmt.Errorf("serve: stop failed: %w", err)
+		}
+		os.Remove(cfg.pidFile)
+		fmt.Printf("serve: stopped (pid %d)\n", pid)
+		return nil
+	},
 }
 
 func run(x *bonzai.Cmd, args ...string) error {
