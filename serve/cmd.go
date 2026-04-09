@@ -18,8 +18,20 @@ var Cmd = &bonzai.Cmd{
 	Name:  "serve",
 	Alias: "s|d|daemon",
 	Short: "run all tw daemons (HTTP, OBS, Twitch, clips)",
-	Cmds:  []*bonzai.Cmd{stopCmd},
+	Cmds:  []*bonzai.Cmd{stopCmd, tailCmd},
 	Def:   &bonzai.Cmd{Do: run},
+}
+
+var tailCmd = &bonzai.Cmd{
+	Name:  "tail",
+	Short: "tail the tw serve log file",
+	Do: func(x *bonzai.Cmd, args ...string) error {
+		cfg := loadConfig()
+		cmd := exec.Command("tail", "-f", cfg.logFile)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	},
 }
 
 var stopCmd = &bonzai.Cmd{
