@@ -4,7 +4,58 @@ import (
 	"encoding/json"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
+
+	"gopkg.in/yaml.v3"
 )
+
+// Category represents one entry in the categories YAML file.
+type Category struct {
+	Regex string `yaml:"regex"`
+	Name  string `yaml:"name"`
+	ID    int    `yaml:"id"`
+}
+
+// CategoriesFile returns the path to the categories YAML file.
+func CategoriesFile() string {
+	if v := os.Getenv("TWITCH_CATEGORIES_FILE"); v != "" {
+		return v
+	}
+	return filepath.Join(os.Getenv("HOME"), ".config", "twitch", "categories.yaml")
+}
+
+// LoadCategories reads and parses the categories YAML file.
+func LoadCategories() ([]Category, error) {
+	data, err := os.ReadFile(CategoriesFile())
+	if err != nil {
+		return nil, err
+	}
+	var cats []Category
+	if err := yaml.Unmarshal(data, &cats); err != nil {
+		return nil, err
+	}
+	return cats, nil
+}
+
+// MatchCategory returns the first Category whose Regex matches topic
+// (case-insensitive). Returns zero value if nothing matches.
+func MatchCategory(topic string, cats []Category) (Category, bool) {
+	for _, c := range cats {
+		re, err := regexp.Compile("(?i)" + c.Regex)
+		if err != nil {
+			continue
+		}
+		if re.MatchString(topic) {
+			return c, true
+		}
+	}
+	return Category{}, false
+}
+
+func BroadcasterID() string {
+	return broadcasterID()
+}
 
 func broadcasterID() string {
 	if id := os.Getenv("TWITCH_BROADCASTER_ID"); id != "" {
@@ -44,7 +95,7 @@ func channelInfo() map[string]any {
 	return result.Data[0]
 }
 
-func Category() string {
+func GetCategory() string {
 	info := channelInfo()
 	if info == nil {
 		return ""

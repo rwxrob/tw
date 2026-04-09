@@ -1,12 +1,9 @@
 package category
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/ktr0731/go-fuzzyfinder"
@@ -23,54 +20,21 @@ var Cmd = &bonzai.Cmd{
 }
 
 func run(x *bonzai.Cmd, args ...string) error {
-	catFile := filepath.Join(os.Getenv("HOME"), ".config", "twitch", "categories")
-	data, err := os.ReadFile(catFile)
+	cats, err := twitch.LoadCategories()
 	if err != nil {
-		return fmt.Errorf("category: cannot read %s: %w", catFile, err)
+		return fmt.Errorf("category: cannot load categories: %w", err)
+	}
+	if len(cats) == 0 {
+		return fmt.Errorf("category: no categories in %s", twitch.CategoriesFile())
 	}
 
-	type entry struct {
-		name   string
-		gameID string
-	}
-	var entries []entry
-	scanner := bufio.NewScanner(bytes.NewReader(data))
-	for scanner.Scan() {
-		line := scanner.Text()
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		parts := strings.Split(line, "\t")
-		if len(parts) < 3 {
-			continue
-		}
-		name := strings.TrimSpace(parts[1])
-		gameID := strings.TrimSpace(parts[2])
-		if name != "" && gameID != "" {
-			entries = append(entries, entry{name, gameID})
-		}
-	}
-	if len(entries) == 0 {
-		return fmt.Errorf("category: no categories in %s", catFile)
-	}
-
-	seen := map[string]bool{}
-	var deduped []entry
-	for _, e := range entries {
-		if !seen[e.name] {
-			seen[e.name] = true
-			deduped = append(deduped, e)
-		}
-	}
-	entries = deduped
-
-	var selected entry
+	var selected twitch.Category
 	if len(args) > 0 {
 		keyword := strings.ToLower(strings.Join(args, " "))
-		var matched *entry
-		for i, e := range entries {
-			if strings.Contains(strings.ToLower(e.name), keyword) {
-				matched = &entries[i]
+		var matched *twitch.Category
+		for i, c := range cats {
+			if strings.Contains(strings.ToLower(c.Name), keyword) {
+				matched = &cats[i]
 				break
 			}
 		}
@@ -79,27 +43,30 @@ func run(x *bonzai.Cmd, args ...string) error {
 		}
 		selected = *matched
 	} else {
-		idx, err := fuzzyfinder.Find(entries,
-			func(i int) string { return entries[i].name },
-			fuzzyfinder.WithQuery(twitch.Category()),
+		idx, err := fuzzyfinder.Find(cats,
+			func(i int) string { return cats[i].Name },
+			fuzzyfinder.WithQuery(twitch.GetCategory()),
 		)
 		if err != nil {
 			return nil // user cancelled
 		}
-		selected = entries[idx]
+		selected = cats[idx]
 	}
 
 	broadcasterID := os.Getenv("TWITCH_BROADCASTER_ID")
 	if broadcasterID == "" {
-		return fmt.Errorf("category: TWITCH_BROADCASTER_ID not set")
+		broadcasterID = twitch.BroadcasterID()
+	}
+	if broadcasterID == "" {
+		return fmt.Errorf("category: cannot determine broadcaster ID")
 	}
 
 	out, err := exec.Command("twitch", "api", "patch", "channels",
 		"-q", "broadcaster_id="+broadcasterID,
-		"-b", `{"game_id":"`+selected.gameID+`"}`).CombinedOutput()
+		"-b", fmt.Sprintf(`{"game_id":"%d"}`, selected.ID)).CombinedOutput()
 	if err != nil && strings.Contains(string(out), `"error"`) {
 		return fmt.Errorf("category: twitch api patch failed: %s", out)
 	}
-	fmt.Println(selected.name)
+	fmt.Println(selected.Name)
 	return nil
 }
