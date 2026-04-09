@@ -11,6 +11,7 @@ import (
 
 	"github.com/ktr0731/go-fuzzyfinder"
 	"github.com/rwxrob/bonzai"
+	"github.com/rwxrob/tw/internal/twitch"
 )
 
 var Cmd = &bonzai.Cmd{
@@ -78,7 +79,10 @@ func run(x *bonzai.Cmd, args ...string) error {
 		}
 		selected = *matched
 	} else {
-		idx, err := fuzzyfinder.Find(entries, func(i int) string { return entries[i].name })
+		idx, err := fuzzyfinder.Find(entries,
+			func(i int) string { return entries[i].name },
+			fuzzyfinder.WithQuery(twitch.Category()),
+		)
 		if err != nil {
 			return nil // user cancelled
 		}
