@@ -14,10 +14,11 @@ import (
 )
 
 var Cmd = &bonzai.Cmd{
-	Name:  "category",
-	Alias: "cat|c",
-	Short: "pick and set Twitch stream category",
-	Do:    run,
+	Name:    "category",
+	Alias:   "cat|c",
+	Short:   "pick and set Twitch stream category",
+	MaxArgs: -1,
+	Do:      run,
 }
 
 func run(x *bonzai.Cmd, args ...string) error {
@@ -62,12 +63,28 @@ func run(x *bonzai.Cmd, args ...string) error {
 	}
 	entries = deduped
 
-	idx, err := fuzzyfinder.Find(entries, func(i int) string { return entries[i].name })
-	if err != nil {
-		return nil // user cancelled
+	var selected entry
+	if len(args) > 0 {
+		keyword := strings.ToLower(strings.Join(args, " "))
+		var matched *entry
+		for i, e := range entries {
+			if strings.Contains(strings.ToLower(e.name), keyword) {
+				matched = &entries[i]
+				break
+			}
+		}
+		if matched == nil {
+			return fmt.Errorf("category: no match for %q", keyword)
+		}
+		selected = *matched
+	} else {
+		idx, err := fuzzyfinder.Find(entries, func(i int) string { return entries[i].name })
+		if err != nil {
+			return nil // user cancelled
+		}
+		selected = entries[idx]
 	}
 
-	selected := entries[idx]
 	broadcasterID := os.Getenv("TWITCH_BROADCASTER_ID")
 	if broadcasterID == "" {
 		return fmt.Errorf("category: TWITCH_BROADCASTER_ID not set")
