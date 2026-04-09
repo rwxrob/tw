@@ -34,13 +34,13 @@ With no args, opens an interactive fuzzy finder.
 
 Sample ~/.config/tw/categories.yaml:
 
-  - regex: shop|bike|road|climb
-    name: IRL
-    id: 509672
+      - regex: shop|bike|road|climb
+        name: IRL
+        id: 509672
 
-  - regex: cod(e|ing)
-    name: Software and Game Development
-    id: 1469308723
+      - regex: cod(e|ing)
+        name: Software and Game Development
+        id: 1469308723
 
 Regexes match case-insensitively; first match wins.`,
 }
