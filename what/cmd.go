@@ -15,7 +15,7 @@ import (
 var Cmd = &bonzai.Cmd{
 	Name:  "what",
 	Alias: "w",
-	Short: "show current topic and Twitch category",
+	Short: "show current stream topic and Twitch category",
 	Do:    run,
 }
 

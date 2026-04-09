@@ -14,9 +14,15 @@ import (
 var Cmd = &bonzai.Cmd{
 	Name:    "category",
 	Alias:   "cat|c",
-	Short:   "pick and set Twitch stream category",
+	Short:   "pick or set Twitch stream category",
 	MaxArgs: -1,
 	Do:      run,
+	Long: `
+Reads ~/.config/tw/categories.yaml and sets the Twitch stream category.
+
+Pass a keyword to fuzzy-match by category name.
+With no args, opens an interactive fuzzy finder pre-filled with the
+current category.`,
 }
 
 func run(x *bonzai.Cmd, args ...string) error {

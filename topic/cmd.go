@@ -17,9 +17,29 @@ import (
 var Cmd = &bonzai.Cmd{
 	Name:    "topic",
 	Alias:   "t",
-	Short:   "get or set the current stream topic",
+	Short:   "get or set stream topic",
 	MaxArgs: -1,
 	Do:      run,
+	Long: `
+Sets stream topic, updates Twitch title, auto-selects matching Twitch
+category from ~/.config/tw/categories.yaml, copies topic to clipboard,
+and prints the topic and current category.
+
+Pass a keyword to fuzzy-match an existing topic from ~/.topics.
+Pass - to swap in the previous topic.
+With no args, opens an interactive fuzzy finder.
+
+Sample ~/.config/tw/categories.yaml:
+
+  - regex: shop|bike|road|climb
+    name: IRL
+    id: 509672
+
+  - regex: cod(e|ing)
+    name: Software and Game Development
+    id: 1469308723
+
+Regexes match case-insensitively; first match wins.`,
 }
 
 func run(x *bonzai.Cmd, args ...string) error {

@@ -17,14 +17,25 @@ import (
 var Cmd = &bonzai.Cmd{
 	Name:  "serve",
 	Alias: "s|d|daemon",
-	Short: "run all tw daemons (HTTP, OBS, Twitch, clips)",
+	Short: "start HTTP/WebSocket daemon (backgrounds itself)",
 	Cmds:  []*bonzai.Cmd{stopCmd, tailCmd},
 	Def:   &bonzai.Cmd{Do: run},
+	Long: `
+Starts all background daemons: HTTP overlay server, OBS WebSocket
+listener, Twitch title poller, Belabox stats poller, and clip syncer.
+
+Daemonizes itself on first run. Detects and reports if already running
+via ~/.local/state/tw.pid. Logs to ~/Library/Logs/tw.log (macOS) or
+~/.local/state/tw.log (Linux).
+
+Subcommands:
+  stop  send SIGTERM to the running daemon
+  tail  tail -f the log file`,
 }
 
 var tailCmd = &bonzai.Cmd{
 	Name:  "tail",
-	Short: "tail the tw serve log file",
+	Short: "tail -f the log file",
 	Do: func(x *bonzai.Cmd, args ...string) error {
 		cfg := loadConfig()
 		cmd := exec.Command("tail", "-f", cfg.logFile)

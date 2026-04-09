@@ -18,7 +18,7 @@ func main() {
 
 var Cmd = &bonzai.Cmd{
 	Name:  "tw",
-	Short: "twitch streaming automation",
+	Short: "Twitch livestream automation",
 	Comp:  comp.Cmds,
 	Cmds:  []*bonzai.Cmd{serve.Cmd, topic.Cmd, category.Cmd, clips.Cmd, what.Cmd, cachetoken.Cmd, obs.Cmd},
 	Def:   what.Cmd,

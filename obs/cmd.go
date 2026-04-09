@@ -16,7 +16,7 @@ import (
 
 var Cmd = &bonzai.Cmd{
 	Name:  "obs",
-	Short: "obs setup utilities",
+	Short: "OBS setup utilities",
 	Comp:  comp.Cmds,
 	Cmds:  []*bonzai.Cmd{addRTIRLCmd},
 }

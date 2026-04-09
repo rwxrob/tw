@@ -14,7 +14,7 @@ import (
 var Cmd = &bonzai.Cmd{
 	Name:  "cache-token",
 	Alias: "token",
-	Short: "refresh Twitch user token with broadcast scope",
+	Short: "refresh Twitch OAuth token with channel:manage:broadcast scope",
 	Do:    run,
 }
 
