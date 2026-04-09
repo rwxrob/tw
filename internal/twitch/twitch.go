@@ -6,13 +6,32 @@ import (
 	"os/exec"
 )
 
+func broadcasterID() string {
+	if id := os.Getenv("TWITCH_BROADCASTER_ID"); id != "" {
+		return id
+	}
+	out, err := exec.Command("twitch", "api", "get", "/users").Output()
+	if err != nil {
+		return ""
+	}
+	var result struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(out, &result); err != nil || len(result.Data) == 0 {
+		return ""
+	}
+	return result.Data[0].ID
+}
+
 func channelInfo() map[string]any {
-	broadcasterID := os.Getenv("TWITCH_BROADCASTER_ID")
-	if broadcasterID == "" {
+	id := broadcasterID()
+	if id == "" {
 		return nil
 	}
 	out, err := exec.Command("twitch", "api", "get", "/channels",
-		"-q", "broadcaster_id="+broadcasterID).Output()
+		"-q", "broadcaster_id="+id).Output()
 	if err != nil {
 		return nil
 	}

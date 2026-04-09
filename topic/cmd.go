@@ -35,6 +35,11 @@ func run(x *bonzai.Cmd, args ...string) error {
 		return swapTopics(topicsFile)
 	}
 
+	// fuzzy match against existing topics; fall back to setting as new topic
+	if matched := fuzzyMatchTopic(topicsFile, arg); matched != "" {
+		return setTopic(topicsFile, matched)
+	}
+
 	return setTopic(topicsFile, arg)
 }
 
@@ -190,4 +195,18 @@ func pickTopic(path string) error {
 	return setTopic(path, lines[idx])
 }
 
-func twitchCategory() string { return twitch.Category() }
+func fuzzyMatchTopic(path, keyword string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	kw := strings.ToLower(keyword)
+	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	for scanner.Scan() {
+		line := strings.TrimRight(scanner.Text(), "\r")
+		if line != "" && strings.Contains(strings.ToLower(line), kw) {
+			return line
+		}
+	}
+	return ""
+}
