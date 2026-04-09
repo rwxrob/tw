@@ -19,6 +19,13 @@ var Cmd = &bonzai.Cmd{
 
 func run(x *bonzai.Cmd, args ...string) error {
 	cfg := loadConfig()
+
+	if f, err := os.OpenFile(cfg.logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+		log.SetOutput(f)
+	} else {
+		log.Printf("serve: cannot open log file %s: %v (logging to stderr)", cfg.logFile, err)
+	}
+
 	bs := newBelaboxLiveState()
 	obss := &obsState{}
 
@@ -33,20 +40,21 @@ func run(x *bonzai.Cmd, args ...string) error {
 }
 
 type config struct {
-	topicsFile        string
-	port              string
-	twitchBroadcaster string
-	twitchPoll        int
-	obsWSURL          string
-	obsWSPasswordFile string
-	clipsDir          string
-	clipsSyncInterval int
-	clipsScene        string
-	liveScene         string
-	liveSceneFile       string
-	belaboxStatsURLFile string
-	belaboxPoll         int
+	topicsFile            string
+	port                  string
+	twitchBroadcaster     string
+	twitchPoll            int
+	obsWSURL              string
+	obsWSPasswordFile     string
+	clipsDir              string
+	clipsSyncInterval     int
+	clipsScene            string
+	liveScene             string
+	liveSceneFile         string
+	belaboxStatsURLFile   string
+	belaboxPoll           int
 	clipsBitrateThreshold int
+	logFile               string
 }
 
 func loadConfig() *config {
@@ -71,6 +79,13 @@ func loadConfig() *config {
 	c.belaboxStatsURLFile = getenv("BELABOX_STATS_URL_FILE", filepath.Join(os.Getenv("HOME"), ".config", "tw", "belabox-stats-url"))
 	c.belaboxPoll = envInt("BELABOX_POLL", 2)
 	c.clipsBitrateThreshold = envInt("CLIPS_BITRATE_THRESHOLD", 600)
+
+	logDefault := filepath.Join(os.Getenv("HOME"), "Library", "Logs", "tw.log")
+	if runtime.GOOS != "darwin" {
+		logDefault = filepath.Join(os.Getenv("HOME"), ".local", "state", "tw.log")
+	}
+	c.logFile = getenv("TW_LOG", logDefault)
+
 	if c.twitchBroadcaster == "" {
 		log.Printf("serve: TWITCH_BROADCASTER_ID not set; Twitch integration disabled")
 	}
