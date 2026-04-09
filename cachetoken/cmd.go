@@ -13,8 +13,8 @@ import (
 )
 
 var Cmd = &bonzai.Cmd{
-	Name:  "cache-token",
-	Alias: "token",
+	Name:  "token",
+	Alias: "tok",
 	Short: "refresh Twitch channel:manage:broadcast token",
 	Cmds:  []*bonzai.Cmd{help.Cmd.AsHidden()},
 	Do:    run,
