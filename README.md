@@ -29,13 +29,13 @@ When a topic is set, `tw topic` automatically updates the Twitch stream title an
 
 ## Categories file
 
-Categories live in `~/.config/twitch/categories.yaml` (override with `TWITCH_CATEGORIES_FILE`).
+Categories live in `~/.config/tw/categories.yaml` (override with `TWITCH_CATEGORIES_FILE`).
 
 A `categories-sample.yaml` is included in the repo — copy it to get started:
 
 ```sh
-mkdir -p ~/.config/twitch
-cp categories-sample.yaml ~/.config/twitch/categories.yaml
+mkdir -p ~/.config/tw
+cp categories-sample.yaml ~/.config/tw/categories.yaml
 ```
 
 YAML is used so that regex patterns require no escaping — `\b` stays `\b` rather than needing `\\b` as in JSON, and most patterns need no quoting at all since YAML plain scalars handle `|`, `.`, `*`, and `()` without special treatment.
@@ -109,7 +109,7 @@ Regexes are matched case-insensitively against the full topic string.
 |----------|---------|-------------|
 | `TWITCH_BROADCASTER_ID` | _(auto-discovered via `twitch api get /users`)_ | Twitch broadcaster ID |
 | `TOPICS` / `TOPIC` | `~/.topics` | Path to topics file |
-| `TWITCH_CATEGORIES_FILE` | `~/.config/twitch/categories.yaml` | Path to categories YAML file |
+| `TWITCH_CATEGORIES_FILE` | `~/.config/tw/categories.yaml` | Path to categories YAML file |
 
 ## Overlays
 

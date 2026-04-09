@@ -22,7 +22,7 @@ func CategoriesFile() string {
 	if v := os.Getenv("TWITCH_CATEGORIES_FILE"); v != "" {
 		return v
 	}
-	return filepath.Join(os.Getenv("HOME"), ".config", "twitch", "categories.yaml")
+	return filepath.Join(os.Getenv("HOME"), ".config", "tw", "categories.yaml")
 }
 
 // LoadCategories reads and parses the categories YAML file.
