@@ -2,6 +2,7 @@ package serve
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -22,9 +23,13 @@ func startTwitchPoller(cfg *config) {
 }
 
 func twitchPollOnce(cfg *config) error {
-	out, err := exec.Command("twitch", "api", "get", "/channels",
-		"-q", "broadcaster_id="+cfg.twitchBroadcaster).Output()
+	cmd := exec.Command("twitch", "api", "get", "/channels",
+		"-q", "broadcaster_id="+cfg.twitchBroadcaster)
+	out, err := cmd.Output()
 	if err != nil {
+		if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+			return fmt.Errorf("%w: %s", err, ee.Stderr)
+		}
 		return err
 	}
 
