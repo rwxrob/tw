@@ -20,10 +20,11 @@ var Cmd = &bonzai.Cmd{
 func run(x *bonzai.Cmd, args ...string) error {
 	cfg := loadConfig()
 	bs := newBelaboxLiveState()
+	obss := &obsState{}
 
-	go startBelabox(cfg, bs)
+	go startBelabox(cfg, bs, obss)
 	go startHTTP(cfg)
-	go startOBS(cfg, bs)
+	go startOBS(cfg, bs, obss)
 	go startTwitchPoller(cfg)
 	go startClipsSyncer(cfg)
 

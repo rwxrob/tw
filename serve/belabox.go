@@ -40,7 +40,7 @@ func (bs *belaboxLiveState) get() bool {
 	return bs.isLive
 }
 
-func startBelabox(cfg *config, bs *belaboxLiveState) {
+func startBelabox(cfg *config, bs *belaboxLiveState, obss *obsState) {
 	url := belaboxLoadURL(cfg.belaboxStatsURLFile)
 	if url == "" {
 		log.Printf("belabox: no stats URL at %s; Belabox integration disabled", cfg.belaboxStatsURLFile)
@@ -50,6 +50,9 @@ func startBelabox(cfg *config, bs *belaboxLiveState) {
 	ticker := time.NewTicker(time.Duration(cfg.belaboxPoll) * time.Second)
 	defer ticker.Stop()
 	for range ticker.C {
+		if !strings.HasPrefix(obss.scene(), "IRL") {
+			continue
+		}
 		live := belaboxFetch(url, cfg.clipsBitrateThreshold)
 		bs.set(live)
 	}

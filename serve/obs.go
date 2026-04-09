@@ -55,16 +55,22 @@ type obsState struct {
 	prevScene    string
 }
 
-func startOBS(cfg *config, bs *belaboxLiveState) {
+func (s *obsState) scene() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.currentScene
+}
+
+func startOBS(cfg *config, bs *belaboxLiveState, state *obsState) {
 	for {
-		if err := obsConnect(cfg, bs); err != nil {
+		if err := obsConnect(cfg, bs, state); err != nil {
 			log.Printf("obs: disconnected: %v; reconnecting in 2s", err)
 		}
 		time.Sleep(2 * time.Second)
 	}
 }
 
-func obsConnect(cfg *config, bs *belaboxLiveState) error {
+func obsConnect(cfg *config, bs *belaboxLiveState, state *obsState) error {
 	password := obsLoadPassword(cfg.obsWSPasswordFile)
 
 	ws, _, err := websocket.DefaultDialer.Dial(cfg.obsWSURL, nil)
@@ -127,8 +133,6 @@ func obsConnect(cfg *config, bs *belaboxLiveState) error {
 	log.Printf("obs: connected to %s", cfg.obsWSURL)
 
 	c.send("GetCurrentProgramScene", map[string]any{})
-
-	state := &obsState{}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
