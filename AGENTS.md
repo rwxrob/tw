@@ -32,8 +32,48 @@ At the end of every significant task or session, summarize the current state, ar
 
 ## Current architecture
 
-TODO
+`cmd-tw` is a Go CLI tool (module `github.com/rwxrob/tw`) built with [bonzai](https://github.com/rwxrob/bonzai).
+
+### Commands
+
+- `tw` — root command; delegates to subcommands
+- `tw serve` — self-backgrounding HTTP server (port 8080); subcommands: `stop`, `tail`
+- `tw topic` — set Twitch stream title + auto-detect category from keywords
+- `tw category` — interactively pick and set Twitch category
+- `tw clips` — manage/sync Twitch clips
+- `tw what` — show current stream info
+- `tw obs` — OBS WebSocket helpers; subcommand `rtirl` (was `add-rtirl`)
+- `tw token` (was `cache-token`) — interactive OAuth token refresh via `twitch token -u`
+
+All commands include `help.Cmd.AsHidden()` as the first entry in their `Cmds` slice.
+
+### Key packages
+
+- `internal/twitch/` — shared Twitch Helix API helpers
+  - `LoadCreds()` — reads `TWITCH_CLIENT_ID`/`TWITCH_TOKEN` env vars or parses `~/.twitch-cli.env`
+  - `BroadcasterID()` — HTTP GET `/helix/users`
+  - `GetCategory()`, `Title()` — HTTP GET `/helix/channels`
+  - `PatchChannels(broadcasterID, jsonBody)` — HTTP PATCH `/helix/channels`
+  - `LoadCategories()`, `MatchCategory()` — YAML category matching
+- `serve/` — daemon lifecycle, HTTP overlay server, Twitch poller, OBS/Belabox pollers
+- `obs/` — OBS WebSocket scene helpers
+
+### Daemon
+
+`tw serve` self-backgrounds (parent forks, exits; child runs). PID written to `~/.local/share/tw/serve.pid`. Logs to `~/Library/Logs/tw.log`. No launchd — run directly.
+
+### Twitch API
+
+All Twitch API calls use direct HTTP to `api.twitch.tv/helix/*` — no `twitch` CLI subprocess calls (except `tw token` which intentionally uses `twitch token -u` for interactive OAuth).
+Credentials: `~/Library/Application Support/twitch-cli/.twitch-cli.env` (macOS) with `CLIENTID` and `ACCESSTOKEN` keys.
+
+### Bonzai conventions
+
+- Command names: no dashes (bonzai routing breaks)
+- `Cmd.Short`: ≤50 runes, must begin with lowercase letter
+- `help.Cmd.AsHidden()` always first in every `Cmds` slice
 
 ## Current tags / versions
 
-TODO
+- bonzai: v0.56.7
+- Go module: `github.com/rwxrob/tw`
