@@ -1,17 +1,24 @@
 package serve
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
-	"os/exec"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
 func startTwitchPoller(cfg *config) {
 	if cfg.twitchBroadcaster == "" {
 		log.Printf("twitch: TWITCH_BROADCASTER_ID not set; poller disabled")
+		return
+	}
+	if cfg.twitchClientID == "" || cfg.twitchToken == "" {
+		log.Printf("twitch: missing client ID or token; poller disabled")
 		return
 	}
 	for {
@@ -23,14 +30,22 @@ func startTwitchPoller(cfg *config) {
 }
 
 func twitchPollOnce(cfg *config) error {
-	cmd := exec.Command("twitch", "api", "get", "/channels",
-		"-q", "broadcaster_id="+cfg.twitchBroadcaster)
-	out, err := cmd.Output()
+	url := "https://api.twitch.tv/helix/channels?broadcaster_id=" + cfg.twitchBroadcaster
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
-			return fmt.Errorf("%w: %s", err, ee.Stderr)
-		}
 		return err
+	}
+	req.Header.Set("Client-Id", cfg.twitchClientID)
+	req.Header.Set("Authorization", "Bearer "+cfg.twitchToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
 
 	var result struct {
@@ -38,7 +53,7 @@ func twitchPollOnce(cfg *config) error {
 			Title string `json:"title"`
 		} `json:"data"`
 	}
-	if err := json.Unmarshal(out, &result); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return err
 	}
 	if len(result.Data) == 0 {
@@ -53,6 +68,45 @@ func twitchPollOnce(cfg *config) error {
 
 	log.Printf("twitch: title changed to: %s", title)
 	return writeTopics(cfg.topicsFile, title, current)
+}
+
+// loadTwitchCreds reads TWITCH_CLIENT_ID and TWITCH_TOKEN from env,
+// falling back to the twitch-cli config file.
+func loadTwitchCreds() (clientID, token string) {
+	clientID = os.Getenv("TWITCH_CLIENT_ID")
+	token = os.Getenv("TWITCH_TOKEN")
+	if clientID != "" && token != "" {
+		return
+	}
+	home := os.Getenv("HOME")
+	envFile := filepath.Join(home, "Library", "Application Support", "twitch-cli", ".twitch-cli.env")
+	if _, err := os.Stat(envFile); os.IsNotExist(err) {
+		envFile = filepath.Join(home, ".config", "twitch-cli", ".twitch-cli.env")
+	}
+	f, err := os.Open(envFile)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		k, v, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		switch k {
+		case "CLIENTID":
+			if clientID == "" {
+				clientID = v
+			}
+		case "ACCESSTOKEN":
+			if token == "" {
+				token = v
+			}
+		}
+	}
+	return
 }
 
 func writeTopics(path, current, previous string) error {

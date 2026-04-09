@@ -145,6 +145,8 @@ type config struct {
 	topicsFile            string
 	port                  string
 	twitchBroadcaster     string
+	twitchClientID        string
+	twitchToken           string
 	twitchPoll            int
 	obsWSURL              string
 	obsWSPasswordFile     string
@@ -166,6 +168,7 @@ func loadConfig() *config {
 	c.topicsFile = getenv("TOPICS", getenv("TOPIC", filepath.Join(os.Getenv("HOME"), ".topics")))
 	c.port = getenv("PORT", "8080")
 	c.twitchBroadcaster = os.Getenv("TWITCH_BROADCASTER_ID")
+	c.twitchClientID, c.twitchToken = loadTwitchCreds()
 	c.twitchPoll = envInt("TWITCH_POLL", 60)
 	c.obsWSURL = getenv("OBS_WS_URL", "ws://127.0.0.1:4455")
 	c.obsWSPasswordFile = getenv("OBS_WS_PASSWORD_FILE", filepath.Join(os.Getenv("HOME"), ".config", "obs-websocket", "password"))
