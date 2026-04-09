@@ -31,6 +31,13 @@ When a topic is set, `tw topic` automatically updates the Twitch stream title an
 
 Categories live in `~/.config/twitch/categories.yaml` (override with `TWITCH_CATEGORIES_FILE`).
 
+A `categories-sample.yaml` is included in the repo — copy it to get started:
+
+```sh
+mkdir -p ~/.config/twitch
+cp categories-sample.yaml ~/.config/twitch/categories.yaml
+```
+
 YAML is used so that regex patterns require no escaping — `\b` stays `\b` rather than needing `\\b` as in JSON, and most patterns need no quoting at all since YAML plain scalars handle `|`, `.`, `*`, and `()` without special treatment.
 
 Twitch game `id` values are permanent — Twitch assigns them once and never changes them, so they are safe to hardcode.
