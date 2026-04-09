@@ -9,12 +9,14 @@ import (
 	"strings"
 
 	"github.com/rwxrob/bonzai"
+	"github.com/rwxrob/bonzai/cmds/help"
 )
 
 var Cmd = &bonzai.Cmd{
 	Name:  "cache-token",
 	Alias: "token",
 	Short: "refresh Twitch channel:manage:broadcast token",
+	Cmds:  []*bonzai.Cmd{help.Cmd},
 	Do:    run,
 }
 

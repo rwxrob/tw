@@ -8,6 +8,7 @@ import (
 	"runtime"
 
 	"github.com/rwxrob/bonzai"
+	"github.com/rwxrob/bonzai/cmds/help"
 	"github.com/rwxrob/bonzai/comp"
 	_ "modernc.org/sqlite"
 )
@@ -17,7 +18,7 @@ var Cmd = &bonzai.Cmd{
 	Alias: "c",
 	Short: "manage twitch clips",
 	Comp:  comp.Cmds,
-	Cmds:  []*bonzai.Cmd{listCmd, syncCmd},
+	Cmds:  []*bonzai.Cmd{help.Cmd, listCmd, syncCmd},
 	Def:   listCmd,
 }
 

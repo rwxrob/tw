@@ -11,6 +11,7 @@ import (
 
 	"github.com/ktr0731/go-fuzzyfinder"
 	"github.com/rwxrob/bonzai"
+	"github.com/rwxrob/bonzai/cmds/help"
 	"github.com/rwxrob/tw/internal/twitch"
 )
 
@@ -19,6 +20,7 @@ var Cmd = &bonzai.Cmd{
 	Alias:   "t",
 	Short:   "get or set stream topic",
 	MaxArgs: -1,
+	Cmds:    []*bonzai.Cmd{help.Cmd},
 	Do:      run,
 	Long: `
 Sets stream topic, updates Twitch title, auto-selects matching Twitch

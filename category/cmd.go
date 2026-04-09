@@ -8,6 +8,7 @@ import (
 
 	"github.com/ktr0731/go-fuzzyfinder"
 	"github.com/rwxrob/bonzai"
+	"github.com/rwxrob/bonzai/cmds/help"
 	"github.com/rwxrob/tw/internal/twitch"
 )
 
@@ -16,6 +17,7 @@ var Cmd = &bonzai.Cmd{
 	Alias:   "cat|c",
 	Short:   "pick or set Twitch stream category",
 	MaxArgs: -1,
+	Cmds:    []*bonzai.Cmd{help.Cmd},
 	Do:      run,
 	Long: `
 Reads ~/.config/tw/categories.yaml and sets the Twitch stream category.

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/rwxrob/bonzai"
+	"github.com/rwxrob/bonzai/cmds/help"
 	"github.com/rwxrob/tw/internal/twitch"
 )
 
@@ -16,6 +17,7 @@ var Cmd = &bonzai.Cmd{
 	Name:  "what",
 	Alias: "w",
 	Short: "show current stream topic and Twitch category",
+	Cmds:  []*bonzai.Cmd{help.Cmd},
 	Do:    run,
 }
 

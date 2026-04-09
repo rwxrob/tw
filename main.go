@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/rwxrob/bonzai"
+	"github.com/rwxrob/bonzai/cmds/help"
 	"github.com/rwxrob/bonzai/comp"
 	"github.com/rwxrob/tw/cachetoken"
 	"github.com/rwxrob/tw/category"
@@ -20,6 +21,6 @@ var Cmd = &bonzai.Cmd{
 	Name:  "tw",
 	Short: "twitch livestream automation",
 	Comp:  comp.Cmds,
-	Cmds:  []*bonzai.Cmd{serve.Cmd, topic.Cmd, category.Cmd, clips.Cmd, what.Cmd, cachetoken.Cmd, obs.Cmd},
+	Cmds:  []*bonzai.Cmd{help.Cmd, serve.Cmd, topic.Cmd, category.Cmd, clips.Cmd, what.Cmd, cachetoken.Cmd, obs.Cmd},
 	Def:   what.Cmd,
 }

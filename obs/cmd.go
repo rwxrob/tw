@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/rwxrob/bonzai"
+	"github.com/rwxrob/bonzai/cmds/help"
 	"github.com/rwxrob/bonzai/comp"
 )
 
@@ -18,7 +19,7 @@ var Cmd = &bonzai.Cmd{
 	Name:  "obs",
 	Short: "obs setup utilities",
 	Comp:  comp.Cmds,
-	Cmds:  []*bonzai.Cmd{addRTIRLCmd},
+	Cmds:  []*bonzai.Cmd{help.Cmd, addRTIRLCmd},
 }
 
 var addRTIRLCmd = &bonzai.Cmd{
