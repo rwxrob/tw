@@ -1,11 +1,15 @@
 package serve
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
+	"syscall"
 
 	"github.com/rwxrob/bonzai"
 )
@@ -20,11 +24,23 @@ var Cmd = &bonzai.Cmd{
 func run(x *bonzai.Cmd, args ...string) error {
 	cfg := loadConfig()
 
+	if pid := runningPID(cfg.pidFile); pid != 0 {
+		fmt.Printf("serve: already running (pid %d)\n", pid)
+		return nil
+	}
+
+	if os.Getenv("_TW_DAEMON") == "" {
+		return spawnDaemon(cfg)
+	}
+
 	if f, err := os.OpenFile(cfg.logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
 		log.SetOutput(f)
 	} else {
 		log.Printf("serve: cannot open log file %s: %v (logging to stderr)", cfg.logFile, err)
 	}
+
+	writePID(cfg.pidFile)
+	defer os.Remove(cfg.pidFile)
 
 	bs := newBelaboxLiveState()
 	obss := &obsState{}
@@ -37,6 +53,47 @@ func run(x *bonzai.Cmd, args ...string) error {
 
 	log.Printf("serve: all daemons started on port %s", cfg.port)
 	select {} // block forever
+}
+
+func spawnDaemon(cfg *config) error {
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(exe, os.Args[1:]...)
+	cmd.Env = append(os.Environ(), "_TW_DAEMON=1")
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	fmt.Printf("serve: started (pid %d) logging to %s\n", cmd.Process.Pid, cfg.logFile)
+	return nil
+}
+
+func runningPID(pidFile string) int {
+	data, err := os.ReadFile(pidFile)
+	if err != nil {
+		return 0
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil {
+		return 0
+	}
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		os.Remove(pidFile)
+		return 0
+	}
+	if err := proc.Signal(syscall.Signal(0)); err != nil {
+		os.Remove(pidFile)
+		return 0
+	}
+	return pid
+}
+
+func writePID(pidFile string) {
+	_ = os.MkdirAll(filepath.Dir(pidFile), 0755)
+	_ = os.WriteFile(pidFile, []byte(strconv.Itoa(os.Getpid())), 0644)
 }
 
 type config struct {
@@ -55,6 +112,7 @@ type config struct {
 	belaboxPoll           int
 	clipsBitrateThreshold int
 	logFile               string
+	pidFile               string
 }
 
 func loadConfig() *config {
@@ -85,6 +143,7 @@ func loadConfig() *config {
 		logDefault = filepath.Join(os.Getenv("HOME"), ".local", "state", "tw.log")
 	}
 	c.logFile = getenv("TW_LOG", logDefault)
+	c.pidFile = getenv("TW_PID", filepath.Join(os.Getenv("HOME"), ".local", "state", "tw.pid"))
 
 	if c.twitchBroadcaster == "" {
 		log.Printf("serve: TWITCH_BROADCASTER_ID not set; Twitch integration disabled")
