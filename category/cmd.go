@@ -79,6 +79,6 @@ func run(x *bonzai.Cmd, args ...string) error {
 	if err != nil && strings.Contains(string(out), `"error"`) {
 		return fmt.Errorf("category: twitch api patch failed: %s", out)
 	}
-	fmt.Printf("category: set to %s\n", selected.name)
+	fmt.Println(selected.name)
 	return nil
 }
