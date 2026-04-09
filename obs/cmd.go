@@ -23,7 +23,7 @@ var Cmd = &bonzai.Cmd{
 }
 
 var addRTIRLCmd = &bonzai.Cmd{
-	Name:  "add-rtirl",
+	Name:  "rtirl",
 	Short: "add RTIRL map browser source to OBS Moblin scene",
 	Do:    runAddRTIRL,
 }
