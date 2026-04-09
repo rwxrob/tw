@@ -17,7 +17,7 @@ var Cmd = &bonzai.Cmd{
 	Name:  "what",
 	Alias: "w",
 	Short: "show current stream topic and Twitch category",
-	Cmds:  []*bonzai.Cmd{help.Cmd},
+	Cmds:  []*bonzai.Cmd{help.Cmd.AsHidden()},
 	Do:    run,
 }
 

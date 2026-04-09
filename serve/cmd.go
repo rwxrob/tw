@@ -19,7 +19,7 @@ var Cmd = &bonzai.Cmd{
 	Name:  "serve",
 	Alias: "s|d|daemon",
 	Short: "start HTTP/WebSocket daemon (backgrounds itself)",
-	Cmds:  []*bonzai.Cmd{help.Cmd, stopCmd, tailCmd},
+	Cmds:  []*bonzai.Cmd{help.Cmd.AsHidden(), stopCmd, tailCmd},
 	Def:   &bonzai.Cmd{Do: run},
 	Long: `
 Starts all background daemons: HTTP overlay server, OBS WebSocket

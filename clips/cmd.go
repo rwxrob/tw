@@ -18,7 +18,7 @@ var Cmd = &bonzai.Cmd{
 	Alias: "c",
 	Short: "manage twitch clips",
 	Comp:  comp.Cmds,
-	Cmds:  []*bonzai.Cmd{help.Cmd, listCmd, syncCmd},
+	Cmds:  []*bonzai.Cmd{help.Cmd.AsHidden(), listCmd, syncCmd},
 	Def:   listCmd,
 }
 

@@ -17,7 +17,7 @@ var Cmd = &bonzai.Cmd{
 	Alias:   "cat|c",
 	Short:   "pick or set Twitch stream category",
 	MaxArgs: -1,
-	Cmds:    []*bonzai.Cmd{help.Cmd},
+	Cmds:    []*bonzai.Cmd{help.Cmd.AsHidden()},
 	Do:      run,
 	Long: `
 Reads ~/.config/tw/categories.yaml and sets the Twitch stream category.

@@ -20,7 +20,7 @@ var Cmd = &bonzai.Cmd{
 	Alias:   "t",
 	Short:   "get or set stream topic",
 	MaxArgs: -1,
-	Cmds:    []*bonzai.Cmd{help.Cmd},
+	Cmds:    []*bonzai.Cmd{help.Cmd.AsHidden()},
 	Do:      run,
 	Long: `
 Sets stream topic, updates Twitch title, auto-selects matching Twitch

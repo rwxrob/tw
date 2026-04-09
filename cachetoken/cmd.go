@@ -16,7 +16,7 @@ var Cmd = &bonzai.Cmd{
 	Name:  "cache-token",
 	Alias: "token",
 	Short: "refresh Twitch channel:manage:broadcast token",
-	Cmds:  []*bonzai.Cmd{help.Cmd},
+	Cmds:  []*bonzai.Cmd{help.Cmd.AsHidden()},
 	Do:    run,
 }
 

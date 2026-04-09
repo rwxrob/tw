@@ -21,6 +21,6 @@ var Cmd = &bonzai.Cmd{
 	Name:  "tw",
 	Short: "twitch livestream automation",
 	Comp:  comp.Cmds,
-	Cmds:  []*bonzai.Cmd{help.Cmd, serve.Cmd, topic.Cmd, category.Cmd, clips.Cmd, what.Cmd, cachetoken.Cmd, obs.Cmd},
+	Cmds:  []*bonzai.Cmd{help.Cmd.AsHidden(), serve.Cmd, topic.Cmd, category.Cmd, clips.Cmd, what.Cmd, cachetoken.Cmd, obs.Cmd},
 	Def:   what.Cmd,
 }

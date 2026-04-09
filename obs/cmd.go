@@ -19,7 +19,7 @@ var Cmd = &bonzai.Cmd{
 	Name:  "obs",
 	Short: "obs setup utilities",
 	Comp:  comp.Cmds,
-	Cmds:  []*bonzai.Cmd{help.Cmd, addRTIRLCmd},
+	Cmds:  []*bonzai.Cmd{help.Cmd.AsHidden(), addRTIRLCmd},
 }
 
 var addRTIRLCmd = &bonzai.Cmd{
