@@ -159,9 +159,6 @@ func BroadcasterID() string {
 }
 
 func broadcasterID() string {
-	if id := os.Getenv("TWITCH_BROADCASTER_ID"); id != "" {
-		return id
-	}
 	out, err := helixGet("/users", "")
 	if err != nil {
 		return ""
