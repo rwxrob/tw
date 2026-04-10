@@ -208,7 +208,7 @@ func loadConfig() *config {
 	c.clipsDir = vars.Fetch[string]("TW_CLIPS_DIR", "ClipsDir", filepath.Join(os.Getenv("HOME"), vidDir, "twclips"))
 	c.clipsSyncInterval = vars.Fetch[int]("TW_CLIPS_SYNC_INTERVAL", "ClipsSyncInterval", 3600)
 	c.clipsScene = vars.Fetch[string]("TW_OBS_CLIPS_SCENE", "OBSClipsScene", "Clips")
-	raw := vars.Fetch[string]("TW_OBS_LIVE_SCENES", "OBSLiveScenes", "IRL - Moblin")
+	raw := vars.Fetch[string]("TW_OBS_LIVE_SCENES", "OBSLiveScenes", "IRL, IRL - Moblin, IRL - Belabox")
 	for _, s := range strings.Split(raw, ",") {
 		if s = strings.TrimSpace(s); s != "" {
 			c.liveScenes = append(c.liveScenes, s)
