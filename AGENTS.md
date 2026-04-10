@@ -32,31 +32,36 @@ At the end of every significant task or session, summarize the current state, ar
 
 ## Current architecture
 
-`cmd-tw` is a Go CLI tool (module `github.com/rwxrob/tw`) built with [bonzai](https://github.com/rwxrob/bonzai).
+`tw` is a Go CLI tool (module `github.com/rwxrob/tw`) built with [bonzai](https://github.com/rwxrob/bonzai).
 
 ### Commands
 
 - `tw` — root command; delegates to subcommands
-- `tw serve` — self-backgrounding HTTP server (port 8080); subcommands: `stop`, `tail`
+- `tw serve` — self-backgrounding HTTP server (port 8080); subcommands: `stop`, `restart`, `tail`
 - `tw topic` — set Twitch stream title + auto-detect category from keywords
 - `tw category` — interactively pick and set Twitch category
 - `tw clips` — manage/sync Twitch clips
 - `tw what` — show current stream info
-- `tw obs` — OBS WebSocket helpers; subcommand `rtirl` (was `add-rtirl`)
-- `tw token` (was `cache-token`) — interactive OAuth token refresh via `twitch token -u`
+- `tw obs` — OBS WebSocket helpers; subcommand `rtirl`
+- `tw login` — interactive OAuth user token flow via `twitch token -u -s channel:manage:broadcast`
 
 All commands include `help.Cmd.AsHidden()` as the first entry in their `Cmds` slice.
 
 ### Key packages
 
 - `internal/twitch/` — shared Twitch Helix API helpers
-  - `LoadCreds()` — reads `TWITCH_CLIENT_ID`/`TWITCH_TOKEN` env vars or parses `~/.twitch-cli.env`
-  - `BroadcasterID()` — HTTP GET `/helix/users`
-  - `GetCategory()`, `Title()` — HTTP GET `/helix/channels`
+  - `LoadCreds()` — reads `CLIENTID`/`ACCESSTOKEN` from twitch-cli env file (kept for compatibility)
+  - `client()` — returns `golang.org/x/oauth2`-backed `*http.Client` + clientID; auto-refreshes token using stored `REFRESHTOKEN`
+  - `BroadcasterID() (string, error)` — HTTP GET `/helix/users` (no params; user token returns authenticated user)
+  - `ChannelTitle(broadcasterID string) (string, error)` — HTTP GET `/helix/channels`
+  - `GetCategory()` — HTTP GET `/helix/channels`
   - `PatchChannels(broadcasterID, jsonBody)` — HTTP PATCH `/helix/channels`
   - `LoadCategories()`, `MatchCategory()` — YAML category matching
-- `serve/` — daemon lifecycle, HTTP overlay server, Twitch poller, OBS/Belabox pollers
-- `obs/` — OBS WebSocket scene helpers
+- `internal/serve/` — daemon lifecycle, HTTP overlay server, Twitch poller, OBS/Belabox pollers
+- `internal/obs/` — OBS WebSocket scene helpers
+- `internal/login/` — OAuth flow via `twitch token -u`, filters sensitive output, verifies broadcaster ID
+
+All cmd packages live under `internal/` to prevent external imports. Only `main.go` is at the root.
 
 ### Daemon
 
@@ -64,8 +69,9 @@ All commands include `help.Cmd.AsHidden()` as the first entry in their `Cmds` sl
 
 ### Twitch API
 
-All Twitch API calls use direct HTTP to `api.twitch.tv/helix/*` — no `twitch` CLI subprocess calls (except `tw token` which intentionally uses `twitch token -u` for interactive OAuth).
-Credentials: `~/Library/Application Support/twitch-cli/.twitch-cli.env` (macOS) with `CLIENTID` and `ACCESSTOKEN` keys.
+All Twitch API calls use direct HTTP to `api.twitch.tv/helix/*` via `golang.org/x/oauth2` client — no `twitch` CLI subprocess calls except `tw login` which intentionally uses `twitch token -u` for the interactive OAuth browser flow.
+Credentials: `~/Library/Application Support/twitch-cli/.twitch-cli.env` (macOS). Keys: `CLIENTID`, `CLIENTSECRET`, `ACCESSTOKEN`, `REFRESHTOKEN`.
+A **user token** (not app token) is required — `channel:manage:broadcast` scope needed for PATCH /channels. Run `tw login` to authenticate.
 
 ### Bonzai conventions
 
@@ -76,4 +82,6 @@ Credentials: `~/Library/Application Support/twitch-cli/.twitch-cli.env` (macOS) 
 ## Current tags / versions
 
 - bonzai: v0.56.7
+- golang.org/x/oauth2: v0.36.0
 - Go module: `github.com/rwxrob/tw`
+- Latest tag: v0.1.6

@@ -18,11 +18,23 @@ go install github.com/rwxrob/tw@latest
 | `tw category [keyword]` | Pick or set Twitch stream category; fuzzy-matches by name |
 | `tw serve` | Start all daemons in background (HTTP, OBS, Twitch, Belabox, clips) |
 | `tw serve stop` | Stop the running daemon |
+| `tw serve restart` | Stop and restart the running daemon |
 | `tw serve tail` | Tail the daemon log file |
 | `tw clips` | List downloaded Twitch clips |
 | `tw clips sync` | Sync clips from Twitch |
-| `tw obs add-rtirl` | Add RTIRL map browser source to OBS scene |
-| `tw cachetoken` | Refresh Twitch OAuth token with channel:manage:broadcast scope |
+| `tw obs rtirl` | Add RTIRL map browser source to OBS scene |
+| `tw login` | Authenticate with Twitch via OAuth (user token, `channel:manage:broadcast` scope) |
+
+## Authentication
+
+`tw login` is required before first use and whenever the token expires.
+It wraps `twitch token -u -s channel:manage:broadcast` to obtain a **user access token** stored in the twitch-cli config file (`~/Library/Application Support/twitch-cli/.twitch-cli.env` on macOS).
+
+A **user token** (not an app token) is required because:
+- `GET /helix/users` without query params only works with a user token (returns the authenticated user's info)
+- `PATCH /helix/channels` requires a user token with `channel:manage:broadcast` scope
+
+The token auto-refreshes via the stored refresh token using `golang.org/x/oauth2` — no manual re-login needed until the refresh token itself expires.
 
 ## Topics file
 
@@ -94,7 +106,6 @@ Regexes are matched case-insensitively against the full topic string.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `8080` | HTTP server port |
-| `TWITCH_BROADCASTER_ID` | _(auto-discovered)_ | Twitch broadcaster ID |
 | `TOPICS` / `TOPIC` | `~/.topics` | Path to topics file |
 | `CLIPS_DIR` | `~/Videos/twclips` | Directory of local clip files |
 | `CLIPS_BITRATE_THRESHOLD` | `600` | Belabox kbps threshold to consider stream live |
@@ -110,7 +121,6 @@ Regexes are matched case-insensitively against the full topic string.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `TWITCH_BROADCASTER_ID` | _(auto-discovered via `twitch api get /users`)_ | Twitch broadcaster ID |
 | `TOPICS` / `TOPIC` | `~/.topics` | Path to topics file |
 | `TWITCH_CATEGORIES_FILE` | `~/.config/tw/categories.yaml` | Path to categories YAML file |
 
