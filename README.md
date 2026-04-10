@@ -123,6 +123,7 @@ All variables can be set via `tw var set <Key> <value>` (persisted to `~/.local/
 | `TW_TOPICS` / `TW_TOPIC` | `TopicsFile` | `~/.config/tw/topics.txt` | Path to topics file |
 | `TW_CLIPS_DIR` | `ClipsDir` | `~/Movies/twclips` | Directory of local clip files |
 | `TW_CLIPS_BITRATE_THRESHOLD` | `ClipsBitrateThreshold` | `200` | Belabox kbps threshold to consider stream live |
+| `TW_CLIPS_OFFLINE_DELAY` | `ClipsOfflineDelay` | `5` | Seconds below threshold before switching to clips |
 | `TW_CLIPS_SYNC_INTERVAL` | `ClipsSyncInterval` | `3600` | Clip sync interval (seconds) |
 | `TW_BELABOX_POLL` | `BelaboxPoll` | `2` | Belabox stats poll interval (seconds) |
 | `TW_BELABOX_STATS_URL` | `BelaboxStatsURL` | _(none)_ | Belabox stats endpoint URL |
