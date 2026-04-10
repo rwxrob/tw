@@ -127,6 +127,9 @@ func setTopic(path, newTopic string) error {
 	} else if cat := twitch.GetCategory(); cat != "" {
 		fmt.Println(cat)
 	}
+	if tags := twitch.GetTags(); len(tags) > 0 {
+		fmt.Println(strings.Join(tags, ", "))
+	}
 	copyToClipboard(newTopic)
 	return nil
 }

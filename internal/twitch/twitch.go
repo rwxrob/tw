@@ -304,6 +304,25 @@ func GetCategory() string {
 	return ""
 }
 
+// GetTags returns the stream tags for the authenticated broadcaster.
+func GetTags() []string {
+	info := channelInfo()
+	if info == nil {
+		return nil
+	}
+	raw, ok := info["tags"].([]any)
+	if !ok {
+		return nil
+	}
+	tags := make([]string, 0, len(raw))
+	for _, t := range raw {
+		if s, ok := t.(string); ok {
+			tags = append(tags, s)
+		}
+	}
+	return tags
+}
+
 // ChannelTitle fetches the current stream title for the given broadcaster ID.
 func ChannelTitle(broadcasterID string) (string, error) {
 	out, err := helixGet("/channels", "broadcaster_id="+broadcasterID)
@@ -320,4 +339,3 @@ func ChannelTitle(broadcasterID string) (string, error) {
 	}
 	return result.Data[0].Title, nil
 }
-
