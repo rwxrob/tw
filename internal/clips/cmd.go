@@ -11,6 +11,7 @@ import (
 	"github.com/rwxrob/bonzai/cmds/help"
 	"github.com/rwxrob/bonzai/comp"
 	"github.com/rwxrob/bonzai/term"
+	"github.com/rwxrob/bonzai/to"
 	_ "modernc.org/sqlite"
 )
 
@@ -70,12 +71,16 @@ func runList(x *bonzai.Cmd, args ...string) error {
 			continue
 		}
 		if term.IsInteractive() {
-			fmt.Printf("%s-%s %sid%s:    %s%d%s\n",
-				term.Dim, term.Reset, term.Cyan, term.Reset, term.Yellow, id, term.Reset)
-			fmt.Printf("  %sslug%s:  %s%s%s\n",
+			width := int(term.WinSize.Col)
+			if width <= 0 {
+				width = 80
+			}
+			fmt.Printf("%s-%s %sid%s: %s%d%s\n",
+				term.Dim, term.Reset, term.Cyan, term.Reset, term.Dim, id, term.Reset)
+			fmt.Printf("  %sslug%s:\n    %s%s%s\n",
 				term.Cyan, term.Reset, term.Green, slug, term.Reset)
-			fmt.Printf("  %stitle%s: %s%s%s\n\n",
-				term.Cyan, term.Reset, term.Bold, title, term.Reset)
+			fmt.Printf("  %stitle%s:\n%s\n",
+				term.Cyan, term.Reset, to.IndentWrapped(4, width, title))
 		} else {
 			fmt.Printf("%d\t%s\t%s\n", id, slug, title)
 		}
