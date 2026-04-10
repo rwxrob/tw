@@ -37,16 +37,16 @@ func run(x *bonzai.Cmd, args ...string) error {
 }
 
 func getTopicsFile() string {
-	if v := os.Getenv("TOPICS"); v != "" {
+	if v := os.Getenv("TW_TOPICS"); v != "" {
 		return v
 	}
-	if v := os.Getenv("TOPIC"); v != "" {
+	if v := os.Getenv("TW_TOPIC"); v != "" {
 		return v
 	}
 	if v, err := vars.Data.Get("TopicsFile"); err == nil && v != "" {
 		return v
 	}
-	return filepath.Join(os.Getenv("HOME"), ".topics")
+	return filepath.Join(os.Getenv("HOME"), ".config", "tw", "topics.txt")
 }
 
 func readLine1(path string) string {

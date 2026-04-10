@@ -26,7 +26,7 @@ type Category struct {
 
 // CategoriesFile returns the path to the categories YAML file.
 func CategoriesFile() string {
-	return vars.Fetch[string]("TWITCH_CATEGORIES_FILE", "CategoriesFile", filepath.Join(os.Getenv("HOME"), ".config", "tw", "categories.yaml"))
+	return vars.Fetch[string]("TW_CATEGORIES_FILE", "CategoriesFile", filepath.Join(os.Getenv("HOME"), ".config", "tw", "categories.yaml"))
 }
 
 // LoadCategories reads and parses the categories YAML file.
@@ -82,8 +82,8 @@ func loadEnvFile() map[string]string {
 
 func LoadCreds() (clientID, token string) {
 	m := loadEnvFile()
-	clientID = vars.Fetch[string]("TWITCH_CLIENT_ID", "TwitchClientID", m["CLIENTID"])
-	token = vars.Fetch[string]("TWITCH_TOKEN", "TwitchToken", m["ACCESSTOKEN"])
+	clientID = vars.Fetch[string]("TW_CLIENT_ID", "TwitchClientID", m["CLIENTID"])
+	token = vars.Fetch[string]("TW_TOKEN", "TwitchToken", m["ACCESSTOKEN"])
 	return
 }
 
@@ -95,9 +95,9 @@ func client() (*http.Client, string, error) {
 		return httpClient, cachedClientID, nil
 	}
 	m := loadEnvFile()
-	clientID := vars.Fetch[string]("TWITCH_CLIENT_ID", "TwitchClientID", m["CLIENTID"])
+	clientID := vars.Fetch[string]("TW_CLIENT_ID", "TwitchClientID", m["CLIENTID"])
 	clientSecret := m["CLIENTSECRET"]
-	accessToken := vars.Fetch[string]("TWITCH_TOKEN", "TwitchToken", m["ACCESSTOKEN"])
+	accessToken := vars.Fetch[string]("TW_TOKEN", "TwitchToken", m["ACCESSTOKEN"])
 	refreshToken := m["REFRESHTOKEN"]
 	if clientID == "" || accessToken == "" {
 		return nil, "", fmt.Errorf("twitch: no credentials")

@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
-	"strings"
 	"sync"
 	"time"
 )
@@ -41,9 +39,9 @@ func (bs *belaboxLiveState) get() bool {
 }
 
 func startBelabox(cfg *config, bs *belaboxLiveState, obss *obsState) {
-	url := belaboxLoadURL(cfg.belaboxStatsURLFile)
+	url := cfg.belaboxStatsURL
 	if url == "" {
-		log.Printf("belabox: no stats URL at %s; Belabox integration disabled", cfg.belaboxStatsURLFile)
+		log.Printf("belabox: no stats URL configured; Belabox integration disabled")
 		return
 	}
 	log.Printf("belabox: polling %s every %ds", url, cfg.belaboxPoll)
@@ -53,7 +51,7 @@ func startBelabox(cfg *config, bs *belaboxLiveState, obss *obsState) {
 	const sustainDur = 5 * time.Second
 	for range ticker.C {
 		scene := obss.scene()
-		if !strings.HasPrefix(scene, "IRL") && scene != cfg.clipsScene {
+		if !isLiveScene(scene, cfg.liveScenes) && scene != cfg.clipsScene {
 			continue
 		}
 		live := belaboxFetch(url, cfg.clipsBitrateThreshold)
@@ -68,14 +66,6 @@ func startBelabox(cfg *config, bs *belaboxLiveState, obss *obsState) {
 			}
 		}
 	}
-}
-
-func belaboxLoadURL(path string) string {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(data))
 }
 
 func belaboxFetch(url string, bitrateThreshold int) bool {

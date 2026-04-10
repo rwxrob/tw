@@ -61,7 +61,7 @@ func clipsDir() string {
 		vidDir = "Movies"
 	}
 	fallback := filepath.Join(os.Getenv("HOME"), vidDir, "twclips")
-	return vars.Fetch[string]("CLIPS_DIR", "ClipsDir", fallback)
+	return vars.Fetch[string]("TW_CLIPS_DIR", "ClipsDir", fallback)
 }
 
 func runList(x *bonzai.Cmd, args ...string) error {

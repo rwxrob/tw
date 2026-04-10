@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/rwxrob/bonzai/vars"
 )
 
 type obsMsg struct {
@@ -71,7 +72,7 @@ func startOBS(cfg *config, bs *belaboxLiveState, state *obsState) {
 }
 
 func obsConnect(cfg *config, bs *belaboxLiveState, state *obsState) error {
-	password := obsLoadPassword(cfg.obsWSPasswordFile)
+	password := cfg.obsWSPassword
 
 	ws, _, err := websocket.DefaultDialer.Dial(cfg.obsWSURL, nil)
 	if err != nil {
@@ -174,10 +175,9 @@ func obsWatchBelabox(ctx context.Context, cfg *config, state *obsState, c *obsCo
 			}
 		} else {
 			if state.currentScene != "" && state.currentScene != cfg.clipsScene &&
-				strings.HasPrefix(state.currentScene, "IRL") {
+				isLiveScene(state.currentScene, cfg.liveScenes) {
 				state.prevScene = state.currentScene
-				_ = os.MkdirAll(filepath.Dir(cfg.liveSceneFile), 0755)
-				_ = os.WriteFile(cfg.liveSceneFile, []byte(state.currentScene+"\n"), 0644)
+				_ = vars.Data.Set("LastLiveScene", state.currentScene)
 				state.mu.Unlock()
 				log.Printf("obs: belabox down; switching to %s", cfg.clipsScene)
 				c.send("SetCurrentProgramScene", map[string]any{"sceneName": cfg.clipsScene})
@@ -222,10 +222,10 @@ func obsHandleResponse(cfg *config, state *obsState, c *obsConn, d json.RawMessa
 		state.currentScene = data.CurrentProgramSceneName
 		log.Printf("obs: current scene: %s", state.currentScene)
 		if state.currentScene == cfg.clipsScene && state.prevScene == "" {
-			if raw, err := os.ReadFile(cfg.liveSceneFile); err == nil {
-				state.prevScene = strings.TrimSpace(string(raw))
-			} else {
-				state.prevScene = cfg.liveScene
+			if v, err := vars.Data.Get("LastLiveScene"); err == nil && v != "" {
+				state.prevScene = v
+			} else if len(cfg.liveScenes) > 0 {
+				state.prevScene = cfg.liveScenes[0]
 			}
 		}
 	}
@@ -344,12 +344,13 @@ func stripLeadingEmoji(s string) string {
 	return s
 }
 
-func obsLoadPassword(path string) string {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return ""
+func isLiveScene(scene string, liveScenes []string) bool {
+	for _, s := range liveScenes {
+		if scene == s {
+			return true
+		}
 	}
-	return strings.TrimRight(string(data), "\r\n")
+	return false
 }
 
 func obsAuthString(password, salt, challenge string) string {
