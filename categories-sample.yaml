@@ -1,9 +1,3 @@
-# Twitch category mappings
-# Copy to ~/.config/tw/categories.yaml
-# Override path with TWITCH_CATEGORIES_FILE env var
-# Regexes match case-insensitively against the full topic string
-# First match wins
-
 - regex: shop|bike|road|climb|hike|walk|camp|with fixie
   name: IRL
   id: 509672

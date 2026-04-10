@@ -20,12 +20,14 @@ Pre-built binaries via goreleaser are planned for a future release.
 | `tw what` | Show current stream topic and Twitch category |
 | `tw topic [keyword\|-]` | Get/set stream topic; fuzzy-matches existing topics; auto-updates Twitch title and category |
 | `tw category [keyword]` | Pick or set Twitch stream category; fuzzy-matches by name |
+| `tw cat edit` | Open categories.yaml in `$EDITOR` |
 | `tw serve` | Start all daemons in background (HTTP, OBS, Twitch, Belabox, clips) |
 | `tw serve stop` | Stop the running daemon |
 | `tw serve restart` | Stop and restart the running daemon |
 | `tw serve tail` | Tail the daemon log file |
+| `tw sync` | Sync title/category/tags to Twitch and pull new clips |
 | `tw clips` | List downloaded Twitch clips |
-| `tw clips sync` | Sync clips from Twitch |
+| `tw clips sync` | Sync clips from Twitch (fetch metadata + download MP4s) |
 | `tw obs rtirl` | Add RTIRL map browser source to OBS scene |
 | `tw login` | Authenticate with Twitch via OAuth (user token, `channel:manage:broadcast` scope) |
 

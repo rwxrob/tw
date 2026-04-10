@@ -11,6 +11,7 @@ import (
 	"github.com/rwxrob/tw/internal/login"
 	"github.com/rwxrob/tw/internal/obs"
 	"github.com/rwxrob/tw/internal/serve"
+	twsync "github.com/rwxrob/tw/internal/sync"
 	"github.com/rwxrob/tw/internal/topic"
 	"github.com/rwxrob/tw/internal/what"
 )
@@ -23,6 +24,6 @@ var Cmd = &bonzai.Cmd{
 	Name:  "tw",
 	Short: "twitch livestream automation",
 	Comp:  comp.Cmds,
-	Cmds:  []*bonzai.Cmd{help.Cmd.AsHidden(), serve.Cmd, topic.Cmd, category.Cmd, clips.Cmd, what.Cmd, cachetoken.Cmd, obs.Cmd, login.Cmd, vars.Cmd},
+	Cmds:  []*bonzai.Cmd{help.Cmd.AsHidden(), serve.Cmd, topic.Cmd, category.Cmd, clips.Cmd, what.Cmd, cachetoken.Cmd, obs.Cmd, login.Cmd, twsync.Cmd, vars.Cmd},
 	Def:   what.Cmd,
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -16,11 +17,120 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// TwitchClip holds clip metadata from GET /helix/clips.
+type TwitchClip struct {
+	ID              string  `json:"id"`
+	BroadcasterID   string  `json:"broadcaster_id"`
+	BroadcasterName string  `json:"broadcaster_name"`
+	Title           string  `json:"title"`
+	CreatedAt       string  `json:"created_at"`
+	ViewCount       int     `json:"view_count"`
+	Duration        float64 `json:"duration"`
+	ThumbnailURL    string  `json:"thumbnail_url"`
+}
+
+// ClipVideoURL derives the MP4 download URL from a Twitch thumbnail URL
+// by stripping the -preview-WxH.jpg suffix and appending .mp4.
+// Returns empty string for new-format thumbnails-prod URLs — use
+// ClipGQLVideoURL for those.
+func ClipVideoURL(thumbnailURL string) string {
+	re := regexp.MustCompile(`-preview-\d+x\d+\.jpg$`)
+	if !re.MatchString(thumbnailURL) {
+		return ""
+	}
+	return re.ReplaceAllString(thumbnailURL, ".mp4")
+}
+
+// ClipGQLVideoURL fetches a signed MP4 download URL for a Twitch clip
+// using the public Twitch GQL API. Required for newer clips whose
+// thumbnail URLs are on the twitch-clips-thumbnails-prod CDN.
+func ClipGQLVideoURL(slug string) (string, error) {
+	const gqlURL = "https://gql.twitch.tv/gql"
+	const clientID = "kimne78kx3ncx6brgo4mv6wki5h1ko"
+
+	body := fmt.Sprintf(
+		`[{"operationName":"VideoAccessToken_Clip","variables":{"slug":%q},"extensions":{"persistedQuery":{"version":1,"sha256Hash":"36b89d2507fce29e5ca551df756d27c1cfe079e2609642b4390aa4c35796eb11"}}}]`,
+		slug,
+	)
+	req, err := http.NewRequest("POST", gqlURL, strings.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Client-ID", clientID)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	var result []struct {
+		Data struct {
+			Clip struct {
+				PlaybackAccessToken struct {
+					Signature string `json:"signature"`
+					Value     string `json:"value"`
+				} `json:"playbackAccessToken"`
+				VideoQualities []struct {
+					SourceURL string `json:"sourceURL"`
+				} `json:"videoQualities"`
+			} `json:"clip"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(raw, &result); err != nil || len(result) == 0 {
+		return "", fmt.Errorf("gql: bad response for %s", slug)
+	}
+	clip := result[0].Data.Clip
+	if len(clip.VideoQualities) == 0 {
+		return "", fmt.Errorf("gql: no video qualities for %s", slug)
+	}
+	sig := clip.PlaybackAccessToken.Signature
+	tok := url.QueryEscape(clip.PlaybackAccessToken.Value)
+	return fmt.Sprintf("%s?sig=%s&token=%s", clip.VideoQualities[0].SourceURL, sig, tok), nil
+}
+
+// GetClips fetches all clips for the broadcaster, paging through all results.
+func GetClips(broadcasterID string) ([]TwitchClip, error) {
+	var all []TwitchClip
+	cursor := ""
+	for {
+		q := "broadcaster_id=" + broadcasterID + "&first=100"
+		if cursor != "" {
+			q += "&after=" + cursor
+		}
+		out, err := helixGet("/clips", q)
+		if err != nil {
+			return nil, err
+		}
+		var result struct {
+			Data       []TwitchClip `json:"data"`
+			Pagination struct {
+				Cursor string `json:"cursor"`
+			} `json:"pagination"`
+		}
+		if err := json.Unmarshal(out, &result); err != nil {
+			return nil, err
+		}
+		all = append(all, result.Data...)
+		if result.Pagination.Cursor == "" || len(result.Data) == 0 {
+			break
+		}
+		cursor = result.Pagination.Cursor
+	}
+	return all, nil
+}
+
 // Category represents one entry in the categories YAML file.
 type Category struct {
-	Regex string `yaml:"regex"`
-	Name  string `yaml:"name"`
-	ID    int    `yaml:"id"`
+	Regex string   `yaml:"regex"`
+	Name  string   `yaml:"name"`
+	ID    int      `yaml:"id"`
+	Tags  []string `yaml:"tags,omitempty"`
 }
 
 // CategoriesFile returns the path to the categories YAML file.

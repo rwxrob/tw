@@ -106,6 +106,5 @@ func runList(x *bonzai.Cmd, args ...string) error {
 }
 
 func runSync(x *bonzai.Cmd, args ...string) error {
-	fmt.Println("clips: sync not yet implemented; run sync-clips manually")
-	return nil
+	return SyncClips()
 }
