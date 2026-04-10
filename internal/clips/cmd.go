@@ -10,6 +10,7 @@ import (
 	"github.com/rwxrob/bonzai"
 	"github.com/rwxrob/bonzai/cmds/help"
 	"github.com/rwxrob/bonzai/comp"
+	"github.com/rwxrob/bonzai/term"
 	_ "modernc.org/sqlite"
 )
 
@@ -68,7 +69,14 @@ func runList(x *bonzai.Cmd, args ...string) error {
 		if err := rows.Scan(&id, &slug, &title); err != nil {
 			continue
 		}
-		fmt.Printf("%d\t%s\t%s\n", id, slug, title)
+		if term.IsInteractive() {
+			fmt.Printf("%s%5d%s  %s%-40s%s  %s%s%s\n",
+				term.Dim, id, term.Reset,
+				term.Cyan, slug, term.Reset,
+				term.Bold, title, term.Reset)
+		} else {
+			fmt.Printf("%d\t%s\t%s\n", id, slug, title)
+		}
 		found = true
 	}
 	if !found {
