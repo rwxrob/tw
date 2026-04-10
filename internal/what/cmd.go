@@ -33,6 +33,10 @@ func run(x *bonzai.Cmd, args ...string) error {
 		fmt.Println(cat)
 	}
 
+	if tags := twitch.GetTags(); len(tags) > 0 {
+		fmt.Println(strings.Join(tags, ", "))
+	}
+
 	return nil
 }
 
