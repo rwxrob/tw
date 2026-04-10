@@ -182,18 +182,58 @@ func ResetClient() {
 	cachedClientID = ""
 }
 
+// persistingTokenSource wraps an oauth2.TokenSource and saves new
+// tokens to bonzai vars whenever a refresh occurs.
+type persistingTokenSource struct {
+	src      oauth2.TokenSource
+	lastHash string
+}
+
+func (p *persistingTokenSource) Token() (*oauth2.Token, error) {
+	tok, err := p.src.Token()
+	if err != nil {
+		return nil, err
+	}
+	h := tok.AccessToken + tok.RefreshToken
+	if h != p.lastHash {
+		p.lastHash = h
+		_ = vars.Data.Set("TwitchToken", tok.AccessToken)
+		if tok.RefreshToken != "" {
+			_ = vars.Data.Set("TwitchRefreshToken", tok.RefreshToken)
+		}
+	}
+	return tok, nil
+}
+
 func client() (*http.Client, string, error) {
 	if httpClient != nil && cachedClientID != "" {
 		return httpClient, cachedClientID, nil
 	}
 	clientID := vars.Fetch[string]("TW_CLIENT_ID", "TwitchClientID", "")
 	accessToken := vars.Fetch[string]("TW_TOKEN", "TwitchToken", "")
+	clientSecret, _ := vars.Data.Get("TwitchClientSecret")
+	refreshToken, _ := vars.Data.Get("TwitchRefreshToken")
 	if clientID == "" || accessToken == "" {
 		return nil, "", fmt.Errorf("twitch: no credentials")
 	}
-	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: accessToken})
+
+	conf := &oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		Endpoint: oauth2.Endpoint{
+			TokenURL: "https://id.twitch.tv/oauth2/token",
+		},
+	}
+	tok := &oauth2.Token{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "bearer",
+	}
+	ts := conf.TokenSource(context.Background(), tok)
+	pts := &persistingTokenSource{src: ts, lastHash: accessToken + refreshToken}
+
 	cachedClientID = clientID
-	httpClient = oauth2.NewClient(context.Background(), ts)
+	httpClient = oauth2.NewClient(context.Background(), pts)
 	return httpClient, cachedClientID, nil
 }
 
