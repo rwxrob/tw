@@ -1,7 +1,6 @@
 package twitch
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -57,48 +56,30 @@ func MatchCategory(topic string, cats []Category) (Category, bool) {
 	return Category{}, false
 }
 
-// loadEnvFile parses the twitch-cli env file and returns a key→value map.
-func loadEnvFile() map[string]string {
-	home := os.Getenv("HOME")
-	envFile := filepath.Join(home, "Library", "Application Support", "twitch-cli", ".twitch-cli.env")
-	if _, err := os.Stat(envFile); os.IsNotExist(err) {
-		envFile = filepath.Join(home, ".config", "twitch-cli", ".twitch-cli.env")
-	}
-	f, err := os.Open(envFile)
-	if err != nil {
-		return nil
-	}
-	defer f.Close()
-	m := map[string]string{}
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		k, v, ok := strings.Cut(scanner.Text(), "=")
-		if ok {
-			m[k] = v
-		}
-	}
-	return m
-}
-
 func LoadCreds() (clientID, token string) {
-	m := loadEnvFile()
-	clientID = vars.Fetch[string]("TW_CLIENT_ID", "TwitchClientID", m["CLIENTID"])
-	token = vars.Fetch[string]("TW_TOKEN", "TwitchToken", m["ACCESSTOKEN"])
+	clientID = vars.Fetch[string]("TW_CLIENT_ID", "TwitchClientID", "")
+	token = vars.Fetch[string]("TW_TOKEN", "TwitchToken", "")
 	return
 }
 
 var httpClient *http.Client
 var cachedClientID string
 
+// ResetClient clears the cached HTTP client so the next call rebuilds it
+// with fresh credentials from vars.
+func ResetClient() {
+	httpClient = nil
+	cachedClientID = ""
+}
+
 func client() (*http.Client, string, error) {
 	if httpClient != nil && cachedClientID != "" {
 		return httpClient, cachedClientID, nil
 	}
-	m := loadEnvFile()
-	clientID := vars.Fetch[string]("TW_CLIENT_ID", "TwitchClientID", m["CLIENTID"])
-	clientSecret := m["CLIENTSECRET"]
-	accessToken := vars.Fetch[string]("TW_TOKEN", "TwitchToken", m["ACCESSTOKEN"])
-	refreshToken := m["REFRESHTOKEN"]
+	clientID := vars.Fetch[string]("TW_CLIENT_ID", "TwitchClientID", "")
+	clientSecret := vars.Fetch[string]("TW_CLIENT_SECRET", "TwitchClientSecret", "")
+	accessToken := vars.Fetch[string]("TW_TOKEN", "TwitchToken", "")
+	refreshToken := vars.Fetch[string]("TW_REFRESH_TOKEN", "TwitchRefreshToken", "")
 	if clientID == "" || accessToken == "" {
 		return nil, "", fmt.Errorf("twitch: no credentials")
 	}

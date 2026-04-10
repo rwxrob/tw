@@ -43,7 +43,7 @@ At the end of every significant task or session, summarize the current state, ar
 - `tw clips` — manage/sync Twitch clips; subcommand `set dir <path>` to configure clips directory
 - `tw what` — show current stream info
 - `tw obs` — OBS WebSocket helpers; subcommand `rtirl`
-- `tw login` — interactive OAuth user token flow via `twitch token -u -s channel:manage:broadcast`
+- `tw login` — native OAuth2 Authorization Code Flow; opens browser, listens on localhost:3000, stores `TwitchToken`+`TwitchRefreshToken` in vars
 - `tw var` — manage bonzai vars (get/set/data/edit/delete/grep); warns on read ops if interactive
 
 All commands include `help.Cmd.AsHidden()` as the first entry in their `Cmds` slice.
@@ -51,9 +51,10 @@ All commands include `help.Cmd.AsHidden()` as the first entry in their `Cmds` sl
 ### Key packages
 
 - `internal/twitch/` — shared Twitch Helix API helpers
-  - `LoadCreds()` — reads credentials from env vars, bonzai vars, or twitch-cli env file (priority order)
+  - `LoadCreds()` — reads credentials from env vars or bonzai vars (no env file)
   - `CategoriesFile()` — reads path from env/vars/default
-  - `client()` — returns `golang.org/x/oauth2`-backed `*http.Client` + clientID; auto-refreshes token using stored `REFRESHTOKEN`
+  - `ResetClient()` — clears cached HTTP client (call after storing new tokens)
+  - `client()` — returns `golang.org/x/oauth2`-backed `*http.Client` + clientID; reads `TwitchClientSecret`/`TwitchRefreshToken` from vars for auto-refresh
   - `BroadcasterID() (string, error)` — HTTP GET `/helix/users` (no params; user token returns authenticated user)
   - `ChannelTitle(broadcasterID string) (string, error)` — HTTP GET `/helix/channels`
   - `GetCategory()` — HTTP GET `/helix/channels`
@@ -61,7 +62,7 @@ All commands include `help.Cmd.AsHidden()` as the first entry in their `Cmds` sl
   - `LoadCategories()`, `MatchCategory()` — YAML category matching
 - `internal/serve/` — daemon lifecycle, HTTP overlay server, Twitch poller, OBS/Belabox pollers
 - `internal/obs/` — OBS WebSocket scene helpers
-- `internal/login/` — OAuth flow via `twitch token -u`, filters sensitive output, verifies broadcaster ID
+- `internal/login/` — native OAuth2 flow: reads clientID/clientSecret from vars, opens browser, exchanges code, stores TwitchToken+TwitchRefreshToken in vars
 
 All cmd packages live under `internal/` to prevent external imports. Only `main.go` is at the root.
 
@@ -75,12 +76,12 @@ All user-configurable values are read via `vars.Fetch[T](envVar, key, fallback)`
 Stored at `~/.local/state/tw/vars.properties`.
 Use `tw var set <Key> <value>` to configure, or `tw clips set dir <path>` for the clips directory.
 
-Var keys: `ClipsDir`, `TopicsFile`, `Port`, `OBSWSAddr`, `OBSPassword`, `OBSLiveScenes`, `OBSClipsScene`, `RTIRLKey`, `BelaboxStatsURL`, `LogFile`, `CategoriesFile`, `TwitchClientID`, `TwitchToken`, `ServePID` (runtime), `LastLiveScene` (runtime).
+Var keys: `ClipsDir`, `TopicsFile`, `Port`, `OBSWSAddr`, `OBSPassword`, `OBSLiveScenes`, `OBSClipsScene`, `RTIRLKey`, `BelaboxStatsURL`, `LogFile`, `CategoriesFile`, `TwitchClientID`, `TwitchClientSecret`, `TwitchToken`, `TwitchRefreshToken`, `ServePID` (runtime), `LastLiveScene` (runtime).
 
 ### Twitch API
 
-All Twitch API calls use direct HTTP to `api.twitch.tv/helix/*` via `golang.org/x/oauth2` client — no `twitch` CLI subprocess calls except `tw login` which intentionally uses `twitch token -u` for the interactive OAuth browser flow.
-Credentials: `~/Library/Application Support/twitch-cli/.twitch-cli.env` (macOS). Keys: `CLIENTID`, `CLIENTSECRET`, `ACCESSTOKEN`, `REFRESHTOKEN`.
+All Twitch API calls use direct HTTP to `api.twitch.tv/helix/*` via `golang.org/x/oauth2` client — no `twitch` CLI subprocess calls.
+Credentials stored in bonzai vars: `TwitchClientID`, `TwitchClientSecret`, `TwitchToken`, `TwitchRefreshToken`.
 A **user token** (not app token) is required — `channel:manage:broadcast` scope needed for PATCH /channels. Run `tw login` to authenticate.
 
 ### Bonzai conventions

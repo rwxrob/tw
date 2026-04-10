@@ -31,14 +31,23 @@ Pre-built binaries via goreleaser are planned for a future release.
 
 ## Authentication
 
-`tw login` is required before first use and whenever the token expires.
-It wraps `twitch token -u -s channel:manage:broadcast` to obtain a **user access token** stored in the twitch-cli config file (`~/Library/Application Support/twitch-cli/.twitch-cli.env` on macOS).
+`tw login` is required before first use and whenever the refresh token expires.
+It implements the OAuth2 Authorization Code Flow natively — no `twitch` CLI required.
+
+Before running `tw login`, set your app credentials in vars:
+
+```sh
+tw var set TwitchClientID <your-client-id>
+tw var set TwitchClientSecret <your-client-secret>
+```
+
+`tw login` opens a browser to `https://id.twitch.tv/oauth2/authorize`, listens on `http://localhost:3000` for the redirect, exchanges the code for tokens, and stores `TwitchToken` and `TwitchRefreshToken` in vars.
 
 A **user token** (not an app token) is required because:
 - `GET /helix/users` without query params only works with a user token (returns the authenticated user's info)
 - `PATCH /helix/channels` requires a user token with `channel:manage:broadcast` scope
 
-The token auto-refreshes via the stored refresh token using `golang.org/x/oauth2` — no manual re-login needed until the refresh token itself expires.
+The token auto-refreshes via the stored `TwitchRefreshToken` using `golang.org/x/oauth2` — no manual re-login needed until the refresh token itself expires (typically 30+ days of inactivity).
 
 ## Configuration (vars)
 
@@ -139,8 +148,10 @@ All variables can be set via `tw var set <Key> <value>` (persisted to `~/.local/
 |---------|---------|---------|-------------|
 | `TW_TOPICS` / `TW_TOPIC` | `TopicsFile` | `~/.config/tw/topics.txt` | Path to topics file |
 | `TW_CATEGORIES_FILE` | `CategoriesFile` | `~/.config/tw/categories.yaml` | Path to categories YAML file |
-| `TW_CLIENT_ID` | `TwitchClientID` | _(from twitch-cli env)_ | Twitch client ID |
-| `TW_TOKEN` | `TwitchToken` | _(from twitch-cli env)_ | Twitch access token |
+| `TW_CLIENT_ID` | `TwitchClientID` | _(none)_ | Twitch app client ID |
+| `TW_CLIENT_SECRET` | `TwitchClientSecret` | _(none)_ | Twitch app client secret (required for token refresh) |
+| `TW_TOKEN` | `TwitchToken` | _(none)_ | Twitch access token (set by `tw login`) |
+| `TW_REFRESH_TOKEN` | `TwitchRefreshToken` | _(none)_ | Twitch refresh token (set by `tw login`) |
 | `TW_RTIRL_KEY` | `RTIRLKey` | _(none)_ | RTIRL API key for OBS browser source |
 
 ## Overlays

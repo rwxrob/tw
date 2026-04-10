@@ -1,76 +1,102 @@
 package login
 
 import (
-	"bufio"
-	"bytes"
+	"context"
 	"fmt"
-	"os"
+	"net/http"
 	"os/exec"
-	"strings"
+	"time"
 
 	"github.com/rwxrob/bonzai"
 	"github.com/rwxrob/bonzai/cmds/help"
+	"github.com/rwxrob/bonzai/vars"
 	"github.com/rwxrob/tw/internal/twitch"
+	"golang.org/x/oauth2"
 )
 
 var Cmd = &bonzai.Cmd{
 	Name:  "login",
 	Short: "authenticate with Twitch via OAuth",
 	Long: `
-Runs the Twitch OAuth user token flow (twitch token -u) and stores
-credentials in the twitch-cli config file.
+Opens a browser to complete the Twitch OAuth2 Authorization Code flow.
+Requires TwitchClientID and TwitchClientSecret to be set in vars:
 
-A user access token (not an app token) is required because:
-- GET /helix/users without query params only returns the authenticated
-  user's info when called with a user token; app tokens require an
-  explicit user ID or login query param and cannot self-identify.
-- PATCH /helix/channels requires a user token with the
-  channel:manage:broadcast scope.
+  tw var set TwitchClientID <id>
+  tw var set TwitchClientSecret <secret>
 
-Running "twitch configure" or "twitch token" (without -u) produces an
-app access token which will fail both of the above calls.
-
-After login, the stored refresh token is used by golang.org/x/oauth2 to
-auto-refresh the access token silently — no manual re-login needed until
-the refresh token itself expires (typically 30+ days of inactivity).
-
-After login succeeds, verifies the connection by resolving and
-displaying the authenticated broadcaster ID.`,
+Listens on http://localhost:3000 for the OAuth redirect. After login,
+TwitchToken and TwitchRefreshToken are stored in vars. The refresh token
+is used by the oauth2 client to silently renew the access token — no
+manual re-login needed until the refresh token expires.`,
 	Cmds: []*bonzai.Cmd{help.Cmd.AsHidden()},
 	Do:   run,
 }
 
-var sensitive = []string{
-	"token", "Token", "TOKEN",
-	"secret", "Secret", "SECRET",
-	"password", "Password",
-	"http://", "https://",
-}
-
 func run(x *bonzai.Cmd, args ...string) error {
-	cmd := exec.Command("twitch", "token", "-u", "-s", "channel:manage:broadcast")
-	cmd.Stdin = os.Stdin
-	var buf bytes.Buffer
-	cmd.Stdout = &buf
-	cmd.Stderr = &buf
-	if err := cmd.Run(); err != nil {
-		fmt.Print(buf.String())
+	clientID, _ := vars.Data.Get("TwitchClientID")
+	clientSecret, _ := vars.Data.Get("TwitchClientSecret")
+	if clientID == "" {
+		return fmt.Errorf("login: TwitchClientID not set — run: tw var set TwitchClientID <id>")
+	}
+	if clientSecret == "" {
+		return fmt.Errorf("login: TwitchClientSecret not set — run: tw var set TwitchClientSecret <secret>")
+	}
+
+	conf := &oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		Scopes:       []string{"channel:manage:broadcast"},
+		RedirectURL:  "http://localhost:3000",
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "https://id.twitch.tv/oauth2/authorize",
+			TokenURL: "https://id.twitch.tv/oauth2/token",
+		},
+	}
+
+	codeCh := make(chan string, 1)
+	errCh := make(chan error, 1)
+
+	mux := http.NewServeMux()
+	srv := &http.Server{Addr: ":3000", Handler: mux}
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if e := r.URL.Query().Get("error"); e != "" {
+			errCh <- fmt.Errorf("login: Twitch auth error: %s", e)
+			return
+		}
+		code := r.URL.Query().Get("code")
+		if code == "" {
+			errCh <- fmt.Errorf("login: no code in callback")
+			return
+		}
+		fmt.Fprint(w, "<html><body>Login successful. You may close this tab.</body></html>")
+		codeCh <- code
+	})
+	go srv.ListenAndServe() //nolint
+	defer srv.Shutdown(context.Background()) //nolint
+
+	authURL := conf.AuthCodeURL("")
+	fmt.Printf("Opening browser for Twitch login...\n")
+	_ = exec.Command("/usr/bin/open", authURL).Start()
+	fmt.Printf("Waiting for OAuth callback on http://localhost:3000 ...\n")
+
+	var code string
+	select {
+	case code = <-codeCh:
+	case err := <-errCh:
 		return err
+	case <-time.After(2 * time.Minute):
+		return fmt.Errorf("login: timed out waiting for browser callback")
 	}
-	scanner := bufio.NewScanner(&buf)
-	for scanner.Scan() {
-		line := scanner.Text()
-		skip := false
-		for _, s := range sensitive {
-			if strings.Contains(line, s) {
-				skip = true
-				break
-			}
-		}
-		if !skip {
-			fmt.Println(line)
-		}
+
+	tok, err := conf.Exchange(context.Background(), code)
+	if err != nil {
+		return fmt.Errorf("login: token exchange failed: %w", err)
 	}
+
+	_ = vars.Data.Set("TwitchToken", tok.AccessToken)
+	_ = vars.Data.Set("TwitchRefreshToken", tok.RefreshToken)
+	twitch.ResetClient()
+
 	id, err := twitch.BroadcasterID()
 	if err != nil {
 		return fmt.Errorf("login: could not verify broadcaster ID: %w", err)
