@@ -40,6 +40,14 @@ A **user token** (not an app token) is required because:
 
 The token auto-refreshes via the stored refresh token using `golang.org/x/oauth2` — no manual re-login needed until the refresh token itself expires.
 
+## Configuration (vars)
+
+All configuration is stored in `~/.local/state/tw/vars.properties` as `key=value` pairs managed via `tw var`.
+
+⚠️ **This file contains sensitive credentials** (`TwitchClientID`, `TwitchToken`) — keep it private and never commit it.
+
+Use `tw var set <key> <value>` to configure, `tw var edit` to open in `$EDITOR`, and `tw var data` to view all values.
+
 ## Topics file
 
 Topics are stored one per line in `~/.topics` (override with `TOPICS` or `TOPIC` env var). The first line is the current topic. `tw topic -` swaps in the previous topic.
