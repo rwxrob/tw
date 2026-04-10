@@ -51,7 +51,7 @@ func run(x *bonzai.Cmd, args ...string) error {
 	} else {
 		idx, err := fuzzyfinder.Find(cats,
 			func(i int) string { return cats[i].Name },
-			fuzzyfinder.WithQuery(twitch.GetCategory()),
+			fuzzyfinder.WithQuery(""),
 		)
 		if err != nil {
 			return nil // user cancelled
