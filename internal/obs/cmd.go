@@ -13,6 +13,7 @@ import (
 	"github.com/rwxrob/bonzai"
 	"github.com/rwxrob/bonzai/cmds/help"
 	"github.com/rwxrob/bonzai/comp"
+	"github.com/rwxrob/bonzai/vars"
 )
 
 var Cmd = &bonzai.Cmd{
@@ -29,10 +30,10 @@ var addRTIRLCmd = &bonzai.Cmd{
 }
 
 func runAddRTIRL(x *bonzai.Cmd, args ...string) error {
-	wsURL := getenv("OBS_WS_URL", "ws://127.0.0.1:4455")
-	passwordFile := getenv("OBS_WS_PASSWORD_FILE", filepath.Join(os.Getenv("HOME"), ".config", "obs-websocket", "password"))
-	scene := getenv("OBS_LIVE_SCENE", "IRL-Moblin")
-	keyFile := getenv("RTIRL_KEY_FILE", filepath.Join(os.Getenv("HOME"), ".config", "tw", "rtirl-key"))
+	wsURL := vars.Fetch[string]("OBS_WS_URL", "OBSWSAddr", "ws://127.0.0.1:4455")
+	passwordFile := vars.Fetch[string]("OBS_WS_PASSWORD_FILE", "OBSPasswordFile", filepath.Join(os.Getenv("HOME"), ".config", "obs-websocket", "password"))
+	scene := vars.Fetch[string]("OBS_LIVE_SCENE", "OBSLiveScene", "IRL-Moblin")
+	keyFile := vars.Fetch[string]("RTIRL_KEY_FILE", "RTIRLKeyFile", filepath.Join(os.Getenv("HOME"), ".config", "tw", "rtirl-key"))
 
 	key, err := os.ReadFile(keyFile)
 	if err != nil {
@@ -146,11 +147,4 @@ func obsAuth(password, salt, challenge string) string {
 	h2 := sha256.New()
 	h2.Write([]byte(secret + challenge))
 	return base64.StdEncoding.EncodeToString(h2.Sum(nil))
-}
-
-func getenv(key, def string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return def
 }

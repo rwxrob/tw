@@ -13,6 +13,7 @@ import (
 	"github.com/ktr0731/go-fuzzyfinder"
 	"github.com/rwxrob/bonzai"
 	"github.com/rwxrob/bonzai/cmds/help"
+	"github.com/rwxrob/bonzai/vars"
 	"github.com/rwxrob/tw/internal/twitch"
 )
 
@@ -71,6 +72,9 @@ func getTopicsFile() string {
 		return v
 	}
 	if v := os.Getenv("TOPIC"); v != "" {
+		return v
+	}
+	if v, err := vars.Data.Get("TopicsFile"); err == nil && v != "" {
 		return v
 	}
 	return filepath.Join(os.Getenv("HOME"), ".topics")
