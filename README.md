@@ -4,9 +4,13 @@ A bonzai-based CLI tool for managing a Twitch livestream setup including OBS sce
 
 ## Install
 
+Requires [Go](https://go.dev/dl/) 1.21+:
+
 ```sh
 go install github.com/rwxrob/tw@latest
 ```
+
+Pre-built binaries via goreleaser are planned for a future release.
 
 ## Commands
 
