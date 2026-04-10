@@ -26,15 +26,15 @@ func run(x *bonzai.Cmd, args ...string) error {
 	topicsFile := getTopicsFile()
 	topic := readLine1(topicsFile)
 
-	fmt.Println(topic)
+	fmt.Printf("\033[1;96m%s\033[0m\n", topic)
 	copyToClipboard(topic)
 
 	if cat := twitch.GetCategory(); cat != "" {
-		fmt.Println(cat)
+		fmt.Printf("\033[1;33m%s\033[0m\n", cat)
 	}
 
 	if tags := twitch.GetTags(); len(tags) > 0 {
-		fmt.Println(strings.Join(tags, ", "))
+		fmt.Printf("\033[1;35m%s\033[0m\n", strings.Join(tags, ", "))
 	}
 
 	return nil
