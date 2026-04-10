@@ -95,8 +95,18 @@ func LoadCreds() (clientID, token string) {
 	return
 }
 
+var cachedClientID, cachedToken string
+
+func creds() (clientID, token string) {
+	if cachedClientID != "" && cachedToken != "" {
+		return cachedClientID, cachedToken
+	}
+	cachedClientID, cachedToken = LoadCreds()
+	return cachedClientID, cachedToken
+}
+
 func helixGet(path, query string) ([]byte, error) {
-	clientID, token := LoadCreds()
+	clientID, token := creds()
 	if clientID == "" || token == "" {
 		return nil, fmt.Errorf("twitch: no credentials")
 	}
@@ -115,6 +125,10 @@ func helixGet(path, query string) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == 401 {
+		cachedClientID, cachedToken = "", ""
+		return nil, fmt.Errorf("HTTP 401: unauthorized")
+	}
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
@@ -122,7 +136,7 @@ func helixGet(path, query string) ([]byte, error) {
 }
 
 func helixPatch(path, query, jsonBody string) error {
-	clientID, token := LoadCreds()
+	clientID, token := creds()
 	if clientID == "" || token == "" {
 		return fmt.Errorf("twitch: no credentials")
 	}
@@ -142,6 +156,11 @@ func helixPatch(path, query, jsonBody string) error {
 		return err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == 401 {
+		cachedClientID, cachedToken = "", ""
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("HTTP 401: %s", body)
+	}
 	if resp.StatusCode != 204 {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, body)
