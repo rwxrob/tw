@@ -48,7 +48,7 @@ func startBelabox(cfg *config, bs *belaboxLiveState, obss *obsState) {
 	ticker := time.NewTicker(time.Duration(cfg.belaboxPoll) * time.Second)
 	defer ticker.Stop()
 	var belowSince time.Time
-	const sustainDur = 5 * time.Second
+	sustainDur := time.Duration(cfg.clipsOfflineDelay) * time.Second
 	for range ticker.C {
 		scene := obss.scene()
 		if !isLiveScene(scene, cfg.liveScenes) && scene != cfg.clipsScene {
