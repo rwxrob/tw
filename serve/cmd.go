@@ -188,8 +188,8 @@ func loadConfig() *config {
 
 	c.topicsFile = getenv("TOPICS", getenv("TOPIC", filepath.Join(os.Getenv("HOME"), ".topics")))
 	c.port = getenv("PORT", "8080")
-	c.twitchBroadcaster = os.Getenv("TWITCH_BROADCASTER_ID")
 	c.twitchClientID, c.twitchToken = twitch.LoadCreds()
+	c.twitchBroadcaster = twitch.BroadcasterID()
 	c.twitchPoll = envInt("TWITCH_POLL", 60)
 	c.obsWSURL = getenv("OBS_WS_URL", "ws://127.0.0.1:4455")
 	c.obsWSPasswordFile = getenv("OBS_WS_PASSWORD_FILE", filepath.Join(os.Getenv("HOME"), ".config", "obs-websocket", "password"))
@@ -215,7 +215,7 @@ func loadConfig() *config {
 	c.pidFile = getenv("TW_PID", filepath.Join(os.Getenv("HOME"), ".local", "state", "tw.pid"))
 
 	if c.twitchBroadcaster == "" {
-		log.Printf("serve: TWITCH_BROADCASTER_ID not set; Twitch integration disabled")
+		log.Printf("serve: could not resolve broadcaster ID; Twitch integration disabled")
 	}
 
 	return c

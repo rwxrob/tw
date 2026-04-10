@@ -11,7 +11,7 @@ import (
 
 func startTwitchPoller(cfg *config) {
 	if cfg.twitchBroadcaster == "" {
-		log.Printf("twitch: TWITCH_BROADCASTER_ID not set; poller disabled")
+		log.Printf("twitch: broadcaster ID unavailable; poller disabled")
 		return
 	}
 	if cfg.twitchClientID == "" || cfg.twitchToken == "" {
