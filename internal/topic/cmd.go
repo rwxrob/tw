@@ -2,6 +2,7 @@ package topic
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,15 +12,38 @@ import (
 
 	"github.com/ktr0731/go-fuzzyfinder"
 	"github.com/rwxrob/bonzai"
+	"github.com/rwxrob/bonzai/cmds/help"
+	"github.com/rwxrob/bonzai/vars"
 	"github.com/rwxrob/tw/internal/twitch"
 )
 
 var Cmd = &bonzai.Cmd{
 	Name:    "topic",
 	Alias:   "t",
-	Short:   "get or set the current stream topic",
+	Short:   "get or set stream topic",
 	MaxArgs: -1,
+	Cmds:    []*bonzai.Cmd{help.Cmd.AsHidden()},
 	Do:      run,
+	Long: `
+Sets stream topic, updates Twitch title, auto-selects matching Twitch
+category from ~/.config/tw/categories.yaml, copies topic to clipboard,
+and prints the topic and current category.
+
+Pass a keyword to fuzzy-match an existing topic from ~/.topics.
+Pass - to swap in the previous topic.
+With no args, opens an interactive fuzzy finder.
+
+Sample ~/.config/tw/categories.yaml:
+
+      - regex: shop|bike|road|climb
+        name: IRL
+        id: 509672
+
+      - regex: cod(e|ing)
+        name: Software and Game Development
+        id: 1469308723
+
+Regexes match case-insensitively; first match wins.`,
 }
 
 func run(x *bonzai.Cmd, args ...string) error {
@@ -35,6 +59,11 @@ func run(x *bonzai.Cmd, args ...string) error {
 		return swapTopics(topicsFile)
 	}
 
+	// fuzzy match against existing topics; fall back to setting as new topic
+	if matched := fuzzyMatchTopic(topicsFile, arg); matched != "" {
+		return setTopic(topicsFile, matched)
+	}
+
 	return setTopic(topicsFile, arg)
 }
 
@@ -43,6 +72,9 @@ func getTopicsFile() string {
 		return v
 	}
 	if v := os.Getenv("TOPIC"); v != "" {
+		return v
+	}
+	if v, err := vars.Data.Get("TopicsFile"); err == nil && v != "" {
 		return v
 	}
 	return filepath.Join(os.Getenv("HOME"), ".topics")
@@ -86,10 +118,11 @@ func setTopic(path, newTopic string) error {
 	}
 
 	updateTwitchTitle(newTopic)
+	updateTwitchCategoryForTopic(newTopic)
 	updateGitHubStatus(newTopic)
 
 	fmt.Println(newTopic)
-	if cat := twitch.Category(); cat != "" {
+	if cat := twitch.GetCategory(); cat != "" {
 		fmt.Println(cat)
 	}
 	copyToClipboard(newTopic)
@@ -137,18 +170,35 @@ func writeTopics(path, newTopic string) error {
 }
 
 func updateTwitchTitle(title string) {
-	broadcasterID := os.Getenv("TWITCH_BROADCASTER_ID")
-	if broadcasterID == "" {
+	broadcasterID, err := twitch.BroadcasterID()
+	if err != nil || broadcasterID == "" {
+		fmt.Fprintf(os.Stderr, "topic: could not get broadcaster ID: %v\n", err)
 		return
 	}
 	if len(title) > 140 {
 		title = title[:140]
 	}
-	out, err := exec.Command("twitch", "api", "patch", "channels",
-		"-q", "broadcaster_id="+broadcasterID,
-		"-b", `{"title":"`+title+`"}`).CombinedOutput()
-	if err != nil && strings.Contains(string(out), `"error"`) {
-		fmt.Fprintf(os.Stderr, "topic: twitch update failed: %s\n", out)
+	if err := twitch.PatchChannels(broadcasterID, `{"title":`+jsonString(title)+`}`); err != nil {
+		fmt.Fprintf(os.Stderr, "topic: twitch title update failed: %v\n", err)
+	}
+}
+
+func updateTwitchCategoryForTopic(topic string) {
+	cats, err := twitch.LoadCategories()
+	if err != nil || len(cats) == 0 {
+		return
+	}
+	cat, ok := twitch.MatchCategory(topic, cats)
+	if !ok {
+		return
+	}
+	broadcasterID, err := twitch.BroadcasterID()
+	if err != nil || broadcasterID == "" {
+		fmt.Fprintf(os.Stderr, "topic: could not get broadcaster ID: %v\n", err)
+		return
+	}
+	if err := twitch.PatchChannels(broadcasterID, fmt.Sprintf(`{"game_id":"%d"}`, cat.ID)); err != nil {
+		fmt.Fprintf(os.Stderr, "topic: category update failed: %v\n", err)
 	}
 }
 
@@ -190,4 +240,23 @@ func pickTopic(path string) error {
 	return setTopic(path, lines[idx])
 }
 
-func twitchCategory() string { return twitch.Category() }
+func fuzzyMatchTopic(path, keyword string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	kw := strings.ToLower(keyword)
+	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	for scanner.Scan() {
+		line := strings.TrimRight(scanner.Text(), "\r")
+		if line != "" && strings.Contains(strings.ToLower(line), kw) {
+			return line
+		}
+	}
+	return ""
+}
+
+func jsonString(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
+}

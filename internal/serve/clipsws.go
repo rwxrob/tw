@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"path/filepath"
@@ -72,8 +73,8 @@ func (h *clipsHub) serveWS(cfg *config, w http.ResponseWriter, r *http.Request) 
 	h.clients[c] = struct{}{}
 	h.mu.Unlock()
 
-	if slug := randomClipSlug(cfg); slug != "" {
-		sendClipMsg(c, slug)
+	if id := randomClipID(cfg); id != 0 {
+		sendClipMsg(c, id)
 	}
 
 	for {
@@ -86,33 +87,33 @@ func (h *clipsHub) serveWS(cfg *config, w http.ResponseWriter, r *http.Request) 
 			continue
 		}
 		if msg.Event == "ended" {
-			if slug := randomClipSlug(cfg); slug != "" {
-				sendClipMsg(c, slug)
+			if id := randomClipID(cfg); id != 0 {
+				sendClipMsg(c, id)
 			}
 		}
 	}
 }
 
-func sendClipMsg(c *websocket.Conn, slug string) {
-	b, _ := json.Marshal(clipsMsg{Src: "/clip/" + slug + ".mp4"})
+func sendClipMsg(c *websocket.Conn, id int) {
+	b, _ := json.Marshal(clipsMsg{Src: fmt.Sprintf("/clip/%d.mp4", id)})
 	_ = c.WriteMessage(websocket.TextMessage, b)
 }
 
-func randomClipSlug(cfg *config) string {
+func randomClipID(cfg *config) int {
 	dbPath := filepath.Join(cfg.clipsDir, "clips.db")
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		log.Printf("clips: open db: %v", err)
-		return ""
+		return 0
 	}
 	defer db.Close()
 
-	var slug string
+	var id int
 	if err := db.QueryRow(
-		`SELECT slug FROM clips WHERE downloaded=1 AND slug!='' ORDER BY RANDOM()*weight DESC LIMIT 1`,
-	).Scan(&slug); err != nil {
+		`SELECT id FROM clips WHERE downloaded=1 ORDER BY RANDOM()*weight DESC LIMIT 1`,
+	).Scan(&id); err != nil {
 		log.Printf("clips: random clip: %v", err)
-		return ""
+		return 0
 	}
-	return slug
+	return id
 }

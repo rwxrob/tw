@@ -9,13 +9,16 @@ import (
 	"strings"
 
 	"github.com/rwxrob/bonzai"
+	"github.com/rwxrob/bonzai/cmds/help"
+	"github.com/rwxrob/bonzai/vars"
 	"github.com/rwxrob/tw/internal/twitch"
 )
 
 var Cmd = &bonzai.Cmd{
 	Name:  "what",
 	Alias: "w",
-	Short: "show current topic and Twitch category",
+	Short: "show current stream topic and Twitch category",
+	Cmds:  []*bonzai.Cmd{help.Cmd.AsHidden()},
 	Do:    run,
 }
 
@@ -26,7 +29,7 @@ func run(x *bonzai.Cmd, args ...string) error {
 	fmt.Println(topic)
 	copyToClipboard(topic)
 
-	if cat := twitch.Category(); cat != "" {
+	if cat := twitch.GetCategory(); cat != "" {
 		fmt.Println(cat)
 	}
 
@@ -38,6 +41,9 @@ func getTopicsFile() string {
 		return v
 	}
 	if v := os.Getenv("TOPIC"); v != "" {
+		return v
+	}
+	if v, err := vars.Data.Get("TopicsFile"); err == nil && v != "" {
 		return v
 	}
 	return filepath.Join(os.Getenv("HOME"), ".topics")

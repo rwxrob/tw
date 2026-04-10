@@ -1,16 +1,16 @@
 package serve
 
 import (
-	"encoding/json"
 	"log"
 	"os"
-	"os/exec"
 	"time"
+
+	"github.com/rwxrob/tw/internal/twitch"
 )
 
 func startTwitchPoller(cfg *config) {
 	if cfg.twitchBroadcaster == "" {
-		log.Printf("twitch: TWITCH_BROADCASTER_ID not set; poller disabled")
+		log.Printf("twitch: broadcaster ID unavailable; poller disabled")
 		return
 	}
 	for {
@@ -22,30 +22,14 @@ func startTwitchPoller(cfg *config) {
 }
 
 func twitchPollOnce(cfg *config) error {
-	out, err := exec.Command("twitch", "api", "get", "/channels",
-		"-q", "broadcaster_id="+cfg.twitchBroadcaster).Output()
+	title, err := twitch.ChannelTitle(cfg.twitchBroadcaster)
 	if err != nil {
 		return err
 	}
-
-	var result struct {
-		Data []struct {
-			Title string `json:"title"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(out, &result); err != nil {
-		return err
-	}
-	if len(result.Data) == 0 {
-		return nil
-	}
-
-	title := result.Data[0].Title
 	current := readLine1(cfg.topicsFile)
 	if title == current || title == "" {
 		return nil
 	}
-
 	log.Printf("twitch: title changed to: %s", title)
 	return writeTopics(cfg.topicsFile, title, current)
 }

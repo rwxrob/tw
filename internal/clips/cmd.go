@@ -8,7 +8,11 @@ import (
 	"runtime"
 
 	"github.com/rwxrob/bonzai"
+	"github.com/rwxrob/bonzai/cmds/help"
 	"github.com/rwxrob/bonzai/comp"
+	"github.com/rwxrob/bonzai/term"
+	"github.com/rwxrob/bonzai/to"
+	"github.com/rwxrob/bonzai/vars"
 	_ "modernc.org/sqlite"
 )
 
@@ -17,7 +21,7 @@ var Cmd = &bonzai.Cmd{
 	Alias: "c",
 	Short: "manage twitch clips",
 	Comp:  comp.Cmds,
-	Cmds:  []*bonzai.Cmd{listCmd, syncCmd},
+	Cmds:  []*bonzai.Cmd{help.Cmd.AsHidden(), listCmd, syncCmd, setCmd},
 	Def:   listCmd,
 }
 
@@ -35,15 +39,29 @@ var syncCmd = &bonzai.Cmd{
 	Do:    runSync,
 }
 
+var setCmd = &bonzai.Cmd{
+	Name:  "set",
+	Short: "set clips configuration values",
+	Comp:  comp.Cmds,
+	Cmds:  []*bonzai.Cmd{help.Cmd.AsHidden(), setDirCmd},
+}
+
+var setDirCmd = &bonzai.Cmd{
+	Name:    "dir",
+	Short:   "set clips directory path",
+	NumArgs: 1,
+	Do: func(x *bonzai.Cmd, args ...string) error {
+		return vars.Data.Set("ClipsDir", args[0])
+	},
+}
+
 func clipsDir() string {
-	if v := os.Getenv("CLIPS_DIR"); v != "" {
-		return v
-	}
 	vidDir := "Videos"
 	if runtime.GOOS == "darwin" {
 		vidDir = "Movies"
 	}
-	return filepath.Join(os.Getenv("HOME"), vidDir, "twclips")
+	fallback := filepath.Join(os.Getenv("HOME"), vidDir, "twclips")
+	return vars.Fetch[string]("CLIPS_DIR", "ClipsDir", fallback)
 }
 
 func runList(x *bonzai.Cmd, args ...string) error {
@@ -67,7 +85,18 @@ func runList(x *bonzai.Cmd, args ...string) error {
 		if err := rows.Scan(&id, &slug, &title); err != nil {
 			continue
 		}
-		fmt.Printf("%d\t%s\t%s\n", id, slug, title)
+		if term.IsInteractive() {
+			width := int(term.WinSize.Col)
+			if width <= 0 {
+				width = 80
+			}
+			fmt.Printf("%s-%s %sid%s: %s%d%s\n",
+				term.Dim, term.Reset, term.Cyan, term.Reset, term.Dim, id, term.Reset)
+			fmt.Printf("  %sdescription%s:\n%s\n",
+				term.Cyan, term.Reset, to.IndentWrapped(4, width, title))
+		} else {
+			fmt.Printf("%d\t%s\t%s\n", id, slug, title)
+		}
 		found = true
 	}
 	if !found {

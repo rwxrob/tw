@@ -1,0 +1,41 @@
+# Twitch category mappings
+# Copy to ~/.config/tw/categories.yaml
+# Override path with TWITCH_CATEGORIES_FILE env var
+# Regexes match case-insensitively against the full topic string
+# First match wins
+
+- regex: shop|bike|road|climb|hike|walk|camp|with fixie
+  name: IRL
+  id: 509672
+
+- regex: hot.?tub|jacuzzi|pool.*soak|soak.*pool
+  name: Pools, Hot Tubs, and Beaches
+  id: 116747788
+
+- regex: to fixie|(build|fixing|fixed|tune|repair|wrench).*(bike|bicycle)|(bike|bicycle).*(build|fixing|fixed|tune|repair|wrench)
+  name: Makers & Crafting
+  id: 509673
+
+- regex: yoga
+  name: Fitness & Health
+  id: 509671
+
+- regex: writ
+  name: Writing & Reading
+  id: 772157971
+
+- regex: club|coffee|☕|break
+  name: Just Chatting
+  id: 509658
+
+- regex: beginner.boost|cowork|conf.*call|schedule
+  name: Co-working & Studying
+  id: 1599346425
+
+- regex: cod(e|ing)
+  name: Software and Game Development
+  id: 1469308723
+
+- regex: hack|linux
+  name: Science & Technology
+  id: 509670
