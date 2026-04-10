@@ -38,6 +38,7 @@ var syncCmd = &bonzai.Cmd{
 	Do:    runSync,
 }
 
+// TODO: replace with bonzai var (e.g. tw.clips.dir) for user-configurable path
 func clipsDir() string {
 	if v := os.Getenv("CLIPS_DIR"); v != "" {
 		return v
