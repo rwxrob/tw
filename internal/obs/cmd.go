@@ -32,7 +32,7 @@ var addRTIRLCmd = &bonzai.Cmd{
 func runAddRTIRL(x *bonzai.Cmd, args ...string) error {
 	wsURL := vars.Fetch[string]("OBS_WS_URL", "OBSWSAddr", "ws://127.0.0.1:4455")
 	passwordFile := vars.Fetch[string]("OBS_WS_PASSWORD_FILE", "OBSPasswordFile", filepath.Join(os.Getenv("HOME"), ".config", "obs-websocket", "password"))
-	scene := vars.Fetch[string]("OBS_LIVE_SCENE", "OBSLiveScene", "IRL-Moblin")
+	scene := vars.Fetch[string]("OBS_LIVE_SCENE", "OBSLiveScene", "IRL - Moblin")
 	keyFile := vars.Fetch[string]("RTIRL_KEY_FILE", "RTIRLKeyFile", filepath.Join(os.Getenv("HOME"), ".config", "tw", "rtirl-key"))
 
 	key, err := os.ReadFile(keyFile)

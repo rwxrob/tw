@@ -26,10 +26,8 @@ func init() {
 			return nil
 		}
 		readOps := map[string]bool{
-			"get": true, "g": true,
 			"data": true,
 			"edit": true, "e": true, "ed": true,
-			"grep": true,
 		}
 		op := ""
 		if len(args) > 0 {
