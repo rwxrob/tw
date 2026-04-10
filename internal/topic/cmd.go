@@ -121,14 +121,14 @@ func setTopic(path, newTopic string) error {
 	updateTwitchTitle(newTopic)
 	updateGitHubStatus(newTopic)
 
-	fmt.Println(newTopic)
+	fmt.Printf("\033[1;96m%s\033[0m\n", newTopic)
 	if catName != "" {
-		fmt.Println(catName)
+		fmt.Printf("\033[1;33m%s\033[0m\n", catName)
 	} else if cat := twitch.GetCategory(); cat != "" {
-		fmt.Println(cat)
+		fmt.Printf("\033[1;33m%s\033[0m\n", cat)
 	}
 	if tags := twitch.GetTags(); len(tags) > 0 {
-		fmt.Println(strings.Join(tags, ", "))
+		fmt.Printf("\033[1;35m%s\033[0m\n", strings.Join(tags, ", "))
 	}
 	copyToClipboard(newTopic)
 	return nil
