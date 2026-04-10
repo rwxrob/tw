@@ -70,10 +70,12 @@ func runList(x *bonzai.Cmd, args ...string) error {
 			continue
 		}
 		if term.IsInteractive() {
-			fmt.Printf("%s%5d%s  %s%-40s%s  %s%s%s\n",
-				term.Dim, id, term.Reset,
-				term.Cyan, slug, term.Reset,
-				term.Bold, title, term.Reset)
+			fmt.Printf("%s-%s %sid%s:    %s%d%s\n",
+				term.Dim, term.Reset, term.Cyan, term.Reset, term.Yellow, id, term.Reset)
+			fmt.Printf("  %sslug%s:  %s%s%s\n",
+				term.Cyan, term.Reset, term.Green, slug, term.Reset)
+			fmt.Printf("  %stitle%s: %s%s%s\n\n",
+				term.Cyan, term.Reset, term.Bold, title, term.Reset)
 		} else {
 			fmt.Printf("%d\t%s\t%s\n", id, slug, title)
 		}
