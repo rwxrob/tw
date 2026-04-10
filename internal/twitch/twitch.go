@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/rwxrob/bonzai/vars"
 	"golang.org/x/oauth2"
 	"gopkg.in/yaml.v3"
 )
@@ -25,10 +26,7 @@ type Category struct {
 
 // CategoriesFile returns the path to the categories YAML file.
 func CategoriesFile() string {
-	if v := os.Getenv("TWITCH_CATEGORIES_FILE"); v != "" {
-		return v
-	}
-	return filepath.Join(os.Getenv("HOME"), ".config", "tw", "categories.yaml")
+	return vars.Fetch[string]("TWITCH_CATEGORIES_FILE", "CategoriesFile", filepath.Join(os.Getenv("HOME"), ".config", "tw", "categories.yaml"))
 }
 
 // LoadCategories reads and parses the categories YAML file.
@@ -82,21 +80,10 @@ func loadEnvFile() map[string]string {
 	return m
 }
 
-// LoadCreds returns (clientID, token) from env vars or the twitch-cli
-// config file at ~/Library/Application Support/twitch-cli/.twitch-cli.env.
 func LoadCreds() (clientID, token string) {
-	clientID = os.Getenv("TWITCH_CLIENT_ID")
-	token = os.Getenv("TWITCH_TOKEN")
-	if clientID != "" && token != "" {
-		return
-	}
 	m := loadEnvFile()
-	if clientID == "" {
-		clientID = m["CLIENTID"]
-	}
-	if token == "" {
-		token = m["ACCESSTOKEN"]
-	}
+	clientID = vars.Fetch[string]("TWITCH_CLIENT_ID", "TwitchClientID", m["CLIENTID"])
+	token = vars.Fetch[string]("TWITCH_TOKEN", "TwitchToken", m["ACCESSTOKEN"])
 	return
 }
 
@@ -108,15 +95,9 @@ func client() (*http.Client, string, error) {
 		return httpClient, cachedClientID, nil
 	}
 	m := loadEnvFile()
-	clientID := os.Getenv("TWITCH_CLIENT_ID")
-	if clientID == "" {
-		clientID = m["CLIENTID"]
-	}
+	clientID := vars.Fetch[string]("TWITCH_CLIENT_ID", "TwitchClientID", m["CLIENTID"])
 	clientSecret := m["CLIENTSECRET"]
-	accessToken := os.Getenv("TWITCH_TOKEN")
-	if accessToken == "" {
-		accessToken = m["ACCESSTOKEN"]
-	}
+	accessToken := vars.Fetch[string]("TWITCH_TOKEN", "TwitchToken", m["ACCESSTOKEN"])
 	refreshToken := m["REFRESHTOKEN"]
 	if clientID == "" || accessToken == "" {
 		return nil, "", fmt.Errorf("twitch: no credentials")

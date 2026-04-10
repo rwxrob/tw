@@ -13,6 +13,7 @@ import (
 
 	"github.com/rwxrob/bonzai"
 	"github.com/rwxrob/bonzai/cmds/help"
+	"github.com/rwxrob/bonzai/vars"
 	"github.com/rwxrob/tw/internal/twitch"
 )
 
@@ -184,53 +185,46 @@ type config struct {
 func loadConfig() *config {
 	c := &config{}
 
-	c.topicsFile = getenv("TOPICS", getenv("TOPIC", filepath.Join(os.Getenv("HOME"), ".topics")))
-	c.port = getenv("PORT", "8080")
+	if v := os.Getenv("TOPICS"); v != "" {
+		c.topicsFile = v
+	} else if v := os.Getenv("TOPIC"); v != "" {
+		c.topicsFile = v
+	} else if v, err := vars.Data.Get("TopicsFile"); err == nil && v != "" {
+		c.topicsFile = v
+	} else {
+		c.topicsFile = filepath.Join(os.Getenv("HOME"), ".topics")
+	}
+
+	c.port = vars.Fetch[string]("PORT", "Port", "8080")
 	var bidErr error
 	c.twitchBroadcaster, bidErr = twitch.BroadcasterID()
-	c.twitchPoll = envInt("TWITCH_POLL", 60)
-	c.obsWSURL = getenv("OBS_WS_URL", "ws://127.0.0.1:4455")
-	c.obsWSPasswordFile = getenv("OBS_WS_PASSWORD_FILE", filepath.Join(os.Getenv("HOME"), ".config", "obs-websocket", "password"))
+	c.twitchPoll = vars.Fetch[int]("TWITCH_POLL", "TwitchPoll", 60)
+	c.obsWSURL = vars.Fetch[string]("OBS_WS_URL", "OBSWSAddr", "ws://127.0.0.1:4455")
+	c.obsWSPasswordFile = vars.Fetch[string]("OBS_WS_PASSWORD_FILE", "OBSPasswordFile", filepath.Join(os.Getenv("HOME"), ".config", "obs-websocket", "password"))
 
 	vidDir := "Videos"
 	if runtime.GOOS == "darwin" {
 		vidDir = "Movies"
 	}
-	c.clipsDir = getenv("CLIPS_DIR", filepath.Join(os.Getenv("HOME"), vidDir, "twclips"))
-	c.clipsSyncInterval = envInt("CLIPS_SYNC_INTERVAL", 3600)
-	c.clipsScene = getenv("OBS_CLIPS_SCENE", "Clips")
-	c.liveScene = getenv("OBS_LIVE_SCENE", "IRL - Moblin")
-	c.liveSceneFile = getenv("OBS_LIVE_SCENE_FILE", filepath.Join(os.Getenv("HOME"), ".local", "state", "tw-live-scene"))
-	c.belaboxStatsURLFile = getenv("BELABOX_STATS_URL_FILE", filepath.Join(os.Getenv("HOME"), ".config", "tw", "belabox-stats-url"))
-	c.belaboxPoll = envInt("BELABOX_POLL", 2)
-	c.clipsBitrateThreshold = envInt("CLIPS_BITRATE_THRESHOLD", 200)
+	c.clipsDir = vars.Fetch[string]("CLIPS_DIR", "ClipsDir", filepath.Join(os.Getenv("HOME"), vidDir, "twclips"))
+	c.clipsSyncInterval = vars.Fetch[int]("CLIPS_SYNC_INTERVAL", "ClipsSyncInterval", 3600)
+	c.clipsScene = vars.Fetch[string]("OBS_CLIPS_SCENE", "OBSClipsScene", "Clips")
+	c.liveScene = vars.Fetch[string]("OBS_LIVE_SCENE", "OBSLiveScene", "IRL - Moblin")
+	c.liveSceneFile = vars.Fetch[string]("OBS_LIVE_SCENE_FILE", "LiveSceneFile", filepath.Join(os.Getenv("HOME"), ".local", "state", "tw-live-scene"))
+	c.belaboxStatsURLFile = vars.Fetch[string]("BELABOX_STATS_URL_FILE", "BelaboxStatsURLFile", filepath.Join(os.Getenv("HOME"), ".config", "tw", "belabox-stats-url"))
+	c.belaboxPoll = vars.Fetch[int]("BELABOX_POLL", "BelaboxPoll", 2)
+	c.clipsBitrateThreshold = vars.Fetch[int]("CLIPS_BITRATE_THRESHOLD", "ClipsBitrateThreshold", 200)
 
 	logDefault := filepath.Join(os.Getenv("HOME"), "Library", "Logs", "tw.log")
 	if runtime.GOOS != "darwin" {
 		logDefault = filepath.Join(os.Getenv("HOME"), ".local", "state", "tw.log")
 	}
-	c.logFile = getenv("TW_LOG", logDefault)
-	c.pidFile = getenv("TW_PID", filepath.Join(os.Getenv("HOME"), ".local", "state", "tw.pid"))
+	c.logFile = vars.Fetch[string]("TW_LOG", "LogFile", logDefault)
+	c.pidFile = vars.Fetch[string]("TW_PID", "PIDFile", filepath.Join(os.Getenv("HOME"), ".local", "state", "tw.pid"))
 
 	if c.twitchBroadcaster == "" {
 		log.Printf("serve: could not resolve broadcaster ID (%v); Twitch integration disabled", bidErr)
 	}
 
 	return c
-}
-
-func getenv(key, def string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return def
-}
-
-func envInt(key string, def int) int {
-	if v := os.Getenv(key); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			return n
-		}
-	}
-	return def
 }
