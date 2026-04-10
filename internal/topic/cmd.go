@@ -166,8 +166,9 @@ func writeTopics(path, newTopic string) error {
 }
 
 func updateTwitchTitle(title string) {
-	broadcasterID := twitch.BroadcasterID()
-	if broadcasterID == "" {
+	broadcasterID, err := twitch.BroadcasterID()
+	if err != nil || broadcasterID == "" {
+		fmt.Fprintf(os.Stderr, "topic: could not get broadcaster ID: %v\n", err)
 		return
 	}
 	if len(title) > 140 {
@@ -187,8 +188,9 @@ func updateTwitchCategoryForTopic(topic string) {
 	if !ok {
 		return
 	}
-	broadcasterID := twitch.BroadcasterID()
-	if broadcasterID == "" {
+	broadcasterID, err := twitch.BroadcasterID()
+	if err != nil || broadcasterID == "" {
+		fmt.Fprintf(os.Stderr, "topic: could not get broadcaster ID: %v\n", err)
 		return
 	}
 	if err := twitch.PatchChannels(broadcasterID, fmt.Sprintf(`{"game_id":"%d"}`, cat.ID)); err != nil {

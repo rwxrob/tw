@@ -12,7 +12,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/rwxrob/tw/obs"
+	"github.com/rwxrob/tw/internal/obs"
 )
 
 // sseBroker fans out topic changes to all connected SSE clients.

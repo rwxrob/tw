@@ -2,7 +2,6 @@ package category
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/ktr0731/go-fuzzyfinder"
@@ -60,12 +59,9 @@ func run(x *bonzai.Cmd, args ...string) error {
 		selected = cats[idx]
 	}
 
-	broadcasterID := os.Getenv("TWITCH_BROADCASTER_ID")
-	if broadcasterID == "" {
-		broadcasterID = twitch.BroadcasterID()
-	}
-	if broadcasterID == "" {
-		return fmt.Errorf("category: cannot determine broadcaster ID")
+	broadcasterID, err := twitch.BroadcasterID()
+	if err != nil || broadcasterID == "" {
+		return fmt.Errorf("category: cannot determine broadcaster ID: %w", err)
 	}
 
 	if err := twitch.PatchChannels(broadcasterID, fmt.Sprintf(`{"game_id":"%d"}`, selected.ID)); err != nil {

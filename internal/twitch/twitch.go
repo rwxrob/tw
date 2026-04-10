@@ -173,14 +173,14 @@ func PatchChannels(broadcasterID, jsonBody string) error {
 	return helixPatch("/channels", "broadcaster_id="+broadcasterID, jsonBody)
 }
 
-func BroadcasterID() string {
+func BroadcasterID() (string, error) {
 	return broadcasterID()
 }
 
-func broadcasterID() string {
+func broadcasterID() (string, error) {
 	out, err := helixGet("/users", "")
 	if err != nil {
-		return ""
+		return "", err
 	}
 	var result struct {
 		Data []struct {
@@ -188,14 +188,14 @@ func broadcasterID() string {
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(out, &result); err != nil || len(result.Data) == 0 {
-		return ""
+		return "", fmt.Errorf("twitch: no user data in /users response")
 	}
-	return result.Data[0].ID
+	return result.Data[0].ID, nil
 }
 
 func channelInfo() map[string]any {
-	id := broadcasterID()
-	if id == "" {
+	id, err := broadcasterID()
+	if err != nil || id == "" {
 		return nil
 	}
 	out, err := helixGet("/channels", "broadcaster_id="+id)
