@@ -38,7 +38,7 @@ At the end of every significant task or session, summarize the current state, ar
 ### Commands
 
 - `tw` — root command; delegates to subcommands
-- `tw serve` — self-backgrounding HTTP server (port 8080); subcommands: `stop`, `restart`, `tail`
+- `tw serve` — self-backgrounding HTTP server (port 8080); subcommands: `stop`, `restart`, `tail`, `ps`
 - `tw topic` — set Twitch stream title + auto-detect category from keywords
 - `tw category` — interactively pick and set Twitch category
 - `tw clips` — manage/sync Twitch clips; subcommand `set dir <path>` to configure clips directory
@@ -96,4 +96,9 @@ A **user token** (not app token) is required — `channel:manage:broadcast` scop
 - bonzai: v0.56.7
 - golang.org/x/oauth2: v0.36.0
 - Go module: `github.com/rwxrob/tw`
-- Latest tag: v0.1.6
+- Latest tag: v0.2.7
+
+## Recent history
+
+- v0.2.6: permanent failure flag for 404/unrecognised clips (`failed` column in DB); skip on retry
+- v0.2.7: `tw serve ps` subcommand — lists all tw serve processes (including orphans), marks tracked PID; uses pgrep on Unix, PowerShell Get-WmiObject on Windows
