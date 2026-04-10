@@ -77,9 +77,7 @@ func runList(x *bonzai.Cmd, args ...string) error {
 			}
 			fmt.Printf("%s-%s %sid%s: %s%d%s\n",
 				term.Dim, term.Reset, term.Cyan, term.Reset, term.Dim, id, term.Reset)
-			fmt.Printf("  %sslug%s:\n    %s%s%s\n",
-				term.Cyan, term.Reset, term.Green, slug, term.Reset)
-			fmt.Printf("  %stitle%s:\n%s\n",
+			fmt.Printf("  %sdescription%s:\n%s\n",
 				term.Cyan, term.Reset, to.IndentWrapped(4, width, title))
 		} else {
 			fmt.Printf("%d\t%s\t%s\n", id, slug, title)
