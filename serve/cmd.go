@@ -20,7 +20,7 @@ var Cmd = &bonzai.Cmd{
 	Name:  "serve",
 	Alias: "s|d|daemon",
 	Short: "start HTTP/WebSocket daemon (backgrounds itself)",
-	Cmds:  []*bonzai.Cmd{help.Cmd.AsHidden(), stopCmd, tailCmd},
+	Cmds:  []*bonzai.Cmd{help.Cmd.AsHidden(), stopCmd, tailCmd, restartCmd},
 	Def:   &bonzai.Cmd{Do: run},
 	Long: `
 Starts all background daemons: HTTP overlay server, OBS WebSocket
@@ -31,8 +31,9 @@ via ~/.local/state/tw.pid. Logs to ~/Library/Logs/tw.log (macOS) or
 ~/.local/state/tw.log (Linux).
 
 Subcommands:
-  stop  send SIGTERM to the running daemon
-  tail  tail -f the log file`,
+  stop     send SIGTERM to the running daemon
+  tail     tail -f the log file
+  restart  stop and restart the daemon`,
 }
 
 var tailCmd = &bonzai.Cmd{
@@ -44,6 +45,25 @@ var tailCmd = &bonzai.Cmd{
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		return cmd.Run()
+	},
+}
+
+var restartCmd = &bonzai.Cmd{
+	Name:  "restart",
+	Alias: "r",
+	Short: "stop and restart the daemon",
+	Do: func(x *bonzai.Cmd, args ...string) error {
+		cfg := loadConfig()
+		pid := runningPID(cfg.pidFile)
+		if pid != 0 {
+			proc, _ := os.FindProcess(pid)
+			if err := proc.Signal(syscall.SIGTERM); err != nil {
+				return fmt.Errorf("serve: stop failed: %w", err)
+			}
+			os.Remove(cfg.pidFile)
+			fmt.Printf("serve: stopped (pid %d)\n", pid)
+		}
+		return run(x)
 	},
 }
 
