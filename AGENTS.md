@@ -67,7 +67,7 @@ All cmd packages live under `internal/` to prevent external imports. Only `main.
 
 ### Daemon
 
-`tw serve` self-backgrounds (parent forks, exits; child runs). PID written to `~/.local/share/tw/serve.pid`. Logs to `~/Library/Logs/tw.log`. No launchd — run directly.
+`tw serve` self-backgrounds (parent forks, exits; child runs). PID stored in vars as `ServePID` (cleared on stop). Logs to `~/Library/Logs/tw.log`. No launchd — run directly.
 
 ### Configuration via bonzai vars
 
@@ -75,7 +75,7 @@ All user-configurable values are read via `vars.Fetch[T](envVar, key, fallback)`
 Stored at `~/.local/state/tw/vars.properties`.
 Use `tw var set <Key> <value>` to configure, or `tw clips set dir <path>` for the clips directory.
 
-Var keys: `ClipsDir`, `TopicsFile`, `Port`, `OBSWSAddr`, `OBSPasswordFile`, `OBSLiveScene`, `OBSClipsScene`, `RTIRLKeyFile`, `LiveSceneFile`, `BelaboxStatsURLFile`, `LogFile`, `PIDFile`, `CategoriesFile`, `TwitchClientID`, `TwitchToken`.
+Var keys: `ClipsDir`, `TopicsFile`, `Port`, `OBSWSAddr`, `OBSPassword`, `OBSLiveScenes`, `OBSClipsScene`, `RTIRLKey`, `BelaboxStatsURL`, `LogFile`, `CategoriesFile`, `TwitchClientID`, `TwitchToken`, `ServePID` (runtime), `LastLiveScene` (runtime).
 
 ### Twitch API
 

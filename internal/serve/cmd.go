@@ -28,7 +28,7 @@ Starts all background daemons: HTTP overlay server, OBS WebSocket
 listener, Twitch title poller, Belabox stats poller, and clip syncer.
 
 Daemonizes itself on first run. Detects and reports if already running
-via ~/.local/state/tw.pid. Logs to ~/Library/Logs/tw.log (macOS) or
+via ServePID in vars. Logs to ~/Library/Logs/tw.log (macOS) or
 ~/.local/state/tw.log (Linux).
 
 Subcommands:
@@ -54,14 +54,13 @@ var restartCmd = &bonzai.Cmd{
 	Alias: "r",
 	Short: "stop and restart the daemon",
 	Do: func(x *bonzai.Cmd, args ...string) error {
-		cfg := loadConfig()
-		pid := runningPID(cfg.pidFile)
+		pid := runningPID()
 		if pid != 0 {
 			proc, _ := os.FindProcess(pid)
 			if err := proc.Signal(syscall.SIGTERM); err != nil {
 				return fmt.Errorf("serve: stop failed: %w", err)
 			}
-			os.Remove(cfg.pidFile)
+			_ = vars.Data.Set("ServePID", "")
 			fmt.Printf("serve: stopped (pid %d)\n", pid)
 		}
 		return run(x)
@@ -72,8 +71,7 @@ var stopCmd = &bonzai.Cmd{
 	Name:  "stop",
 	Short: "stop the running tw serve daemon",
 	Do: func(x *bonzai.Cmd, args ...string) error {
-		cfg := loadConfig()
-		pid := runningPID(cfg.pidFile)
+		pid := runningPID()
 		if pid == 0 {
 			fmt.Println("serve: not running")
 			return nil
@@ -82,7 +80,7 @@ var stopCmd = &bonzai.Cmd{
 		if err := proc.Signal(syscall.SIGTERM); err != nil {
 			return fmt.Errorf("serve: stop failed: %w", err)
 		}
-		os.Remove(cfg.pidFile)
+		_ = vars.Data.Set("ServePID", "")
 		fmt.Printf("serve: stopped (pid %d)\n", pid)
 		return nil
 	},
@@ -91,7 +89,7 @@ var stopCmd = &bonzai.Cmd{
 func run(x *bonzai.Cmd, args ...string) error {
 	cfg := loadConfig()
 
-	if pid := runningPID(cfg.pidFile); pid != 0 {
+	if pid := runningPID(); pid != 0 {
 		fmt.Printf("serve: already running (pid %d)\n", pid)
 		return nil
 	}
@@ -106,8 +104,8 @@ func run(x *bonzai.Cmd, args ...string) error {
 		log.Printf("serve: cannot open log file %s: %v (logging to stderr)", cfg.logFile, err)
 	}
 
-	writePID(cfg.pidFile)
-	defer os.Remove(cfg.pidFile)
+	writePID()
+	defer vars.Data.Set("PID", "") //nolint
 
 	bs := newBelaboxLiveState()
 	obss := &obsState{}
@@ -137,30 +135,29 @@ func spawnDaemon(cfg *config) error {
 	return nil
 }
 
-func runningPID(pidFile string) int {
-	data, err := os.ReadFile(pidFile)
-	if err != nil {
+func runningPID() int {
+	v, err := vars.Data.Get("ServePID")
+	if err != nil || v == "" {
 		return 0
 	}
-	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	pid, err := strconv.Atoi(strings.TrimSpace(v))
 	if err != nil {
 		return 0
 	}
 	proc, err := os.FindProcess(pid)
 	if err != nil {
-		os.Remove(pidFile)
+		_ = vars.Data.Set("ServePID", "")
 		return 0
 	}
 	if err := proc.Signal(syscall.Signal(0)); err != nil {
-		os.Remove(pidFile)
+		_ = vars.Data.Set("ServePID", "")
 		return 0
 	}
 	return pid
 }
 
-func writePID(pidFile string) {
-	_ = os.MkdirAll(filepath.Dir(pidFile), 0755)
-	_ = os.WriteFile(pidFile, []byte(strconv.Itoa(os.Getpid())), 0644)
+func writePID() {
+	_ = vars.Data.Set("ServePID", strconv.Itoa(os.Getpid()))
 }
 
 type config struct {
@@ -178,7 +175,6 @@ type config struct {
 	belaboxPoll           int
 	clipsBitrateThreshold int
 	logFile               string
-	pidFile               string
 }
 
 func loadConfig() *config {
@@ -223,7 +219,6 @@ func loadConfig() *config {
 		logDefault = filepath.Join(os.Getenv("HOME"), ".local", "state", "tw.log")
 	}
 	c.logFile = vars.Fetch[string]("TW_LOG", "LogFile", logDefault)
-	c.pidFile = vars.Fetch[string]("TW_PID", "PIDFile", filepath.Join(os.Getenv("HOME"), ".local", "state", "tw.pid"))
 
 	if c.twitchBroadcaster == "" {
 		log.Printf("serve: could not resolve broadcaster ID (%v); Twitch integration disabled", bidErr)

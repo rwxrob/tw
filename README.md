@@ -50,13 +50,13 @@ Use `tw var set <key> <value>` to configure, `tw var edit` to open in `$EDITOR`,
 
 ## Topics file
 
-Topics are stored one per line in `~/.topics` (override with `TOPICS` or `TOPIC` env var). The first line is the current topic. `tw topic -` swaps in the previous topic.
+Topics are stored one per line in `~/.config/tw/topics.txt` (override with `TW_TOPICS` or `TW_TOPIC` env var). The first line is the current topic. `tw topic -` swaps in the previous topic.
 
 When a topic is set, `tw topic` automatically updates the Twitch stream title and picks the matching category from the categories file.
 
 ## Categories file
 
-Categories live in `~/.config/tw/categories.yaml` (override with `TWITCH_CATEGORIES_FILE`).
+Categories live in `~/.config/tw/categories.yaml` (override with `TW_CATEGORIES_FILE`).
 
 A `categories-sample.yaml` is included in the repo — copy it to get started:
 
@@ -113,28 +113,34 @@ Regexes are matched case-insensitively against the full topic string.
 
 ## Environment variables
 
+All variables can be set via `tw var set <Key> <value>` (persisted to `~/.local/state/tw/vars.properties`) or overridden at runtime with the `TW_*` env var shown below.
+
 ### `tw serve` daemon
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `8080` | HTTP server port |
-| `TOPICS` / `TOPIC` | `~/.topics` | Path to topics file |
-| `CLIPS_DIR` | `~/Videos/twclips` | Directory of local clip files |
-| `CLIPS_BITRATE_THRESHOLD` | `600` | Belabox kbps threshold to consider stream live |
-| `BELABOX_POLL` | `2` | Belabox stats poll interval (seconds) |
-| `TWITCH_POLL` | `60` | Twitch API poll interval (seconds) |
-| `CLIPS_SYNC_INTERVAL` | `3600` | Clip sync interval (seconds) |
-| `OBS_CLIPS_SCENE` | `Clips` | OBS scene name for clip playback |
-| `OBS_LIVE_SCENE_FILE` | `~/.local/state/tw-live-scene` | File tracking active OBS scene |
-| `OBS_WS_PASSWORD_FILE` | `~/.config/obs-websocket/password` | OBS WebSocket password file |
-| `BELABOX_STATS_URL_FILE` | `~/.config/tw/belabox-stats-url` | File containing Belabox stats URL |
+| Env var | Var key | Default | Description |
+|---------|---------|---------|-------------|
+| `TW_PORT` | `Port` | `8080` | HTTP server port |
+| `TW_TOPICS` / `TW_TOPIC` | `TopicsFile` | `~/.config/tw/topics.txt` | Path to topics file |
+| `TW_CLIPS_DIR` | `ClipsDir` | `~/Movies/twclips` | Directory of local clip files |
+| `TW_CLIPS_BITRATE_THRESHOLD` | `ClipsBitrateThreshold` | `200` | Belabox kbps threshold to consider stream live |
+| `TW_CLIPS_SYNC_INTERVAL` | `ClipsSyncInterval` | `3600` | Clip sync interval (seconds) |
+| `TW_BELABOX_POLL` | `BelaboxPoll` | `2` | Belabox stats poll interval (seconds) |
+| `TW_BELABOX_STATS_URL` | `BelaboxStatsURL` | _(none)_ | Belabox stats endpoint URL |
+| `TW_TWITCH_POLL` | `TwitchPoll` | `60` | Twitch API poll interval (seconds) |
+| `TW_OBS_WS_URL` | `OBSWSAddr` | `ws://127.0.0.1:4455` | OBS WebSocket address |
+| `TW_OBS_WS_PASSWORD` | `OBSPassword` | _(none)_ | OBS WebSocket password |
+| `TW_OBS_CLIPS_SCENE` | `OBSClipsScene` | `Clips` | OBS scene name for clip playback |
+| `TW_OBS_LIVE_SCENES` | `OBSLiveScenes` | `IRL, IRL - Moblin, IRL - Belabox` | Comma-separated list of live scene names |
 
 ### CLI commands
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `TOPICS` / `TOPIC` | `~/.topics` | Path to topics file |
-| `TWITCH_CATEGORIES_FILE` | `~/.config/tw/categories.yaml` | Path to categories YAML file |
+| Env var | Var key | Default | Description |
+|---------|---------|---------|-------------|
+| `TW_TOPICS` / `TW_TOPIC` | `TopicsFile` | `~/.config/tw/topics.txt` | Path to topics file |
+| `TW_CATEGORIES_FILE` | `CategoriesFile` | `~/.config/tw/categories.yaml` | Path to categories YAML file |
+| `TW_CLIENT_ID` | `TwitchClientID` | _(from twitch-cli env)_ | Twitch client ID |
+| `TW_TOKEN` | `TwitchToken` | _(from twitch-cli env)_ | Twitch access token |
+| `TW_RTIRL_KEY` | `RTIRLKey` | _(none)_ | RTIRL API key for OBS browser source |
 
 ## Overlays
 
@@ -148,4 +154,4 @@ The `tw serve` daemon exposes browser-source overlays:
 
 ## Belabox polling
 
-Belabox stats are only polled when the active OBS scene starts with `IRL` or matches `OBS_CLIPS_SCENE`. This avoids unnecessary network traffic during non-IRL scenes.
+Belabox stats are only polled when the active OBS scene is in `OBSLiveScenes` or matches `OBSClipsScene`. This avoids unnecessary network traffic during non-IRL scenes.
