@@ -49,13 +49,24 @@ func startBelabox(cfg *config, bs *belaboxLiveState, obss *obsState) {
 	log.Printf("belabox: polling %s every %ds", url, cfg.belaboxPoll)
 	ticker := time.NewTicker(time.Duration(cfg.belaboxPoll) * time.Second)
 	defer ticker.Stop()
+	var belowSince time.Time
+	const sustainDur = 5 * time.Second
 	for range ticker.C {
 		scene := obss.scene()
 		if !strings.HasPrefix(scene, "IRL") && scene != cfg.clipsScene {
 			continue
 		}
 		live := belaboxFetch(url, cfg.clipsBitrateThreshold)
-		bs.set(live)
+		if live {
+			belowSince = time.Time{}
+			bs.set(true)
+		} else {
+			if belowSince.IsZero() {
+				belowSince = time.Now()
+			} else if time.Since(belowSince) >= sustainDur {
+				bs.set(false)
+			}
+		}
 	}
 }
 

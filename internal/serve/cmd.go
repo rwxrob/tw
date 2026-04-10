@@ -203,7 +203,7 @@ func loadConfig() *config {
 	c.liveSceneFile = getenv("OBS_LIVE_SCENE_FILE", filepath.Join(os.Getenv("HOME"), ".local", "state", "tw-live-scene"))
 	c.belaboxStatsURLFile = getenv("BELABOX_STATS_URL_FILE", filepath.Join(os.Getenv("HOME"), ".config", "tw", "belabox-stats-url"))
 	c.belaboxPoll = envInt("BELABOX_POLL", 2)
-	c.clipsBitrateThreshold = envInt("CLIPS_BITRATE_THRESHOLD", 600)
+	c.clipsBitrateThreshold = envInt("CLIPS_BITRATE_THRESHOLD", 200)
 
 	logDefault := filepath.Join(os.Getenv("HOME"), "Library", "Logs", "tw.log")
 	if runtime.GOOS != "darwin" {
