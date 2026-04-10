@@ -117,12 +117,14 @@ func setTopic(path, newTopic string) error {
 		return err
 	}
 
+	catName := updateTwitchCategoryForTopic(newTopic)
 	updateTwitchTitle(newTopic)
-	updateTwitchCategoryForTopic(newTopic)
 	updateGitHubStatus(newTopic)
 
 	fmt.Println(newTopic)
-	if cat := twitch.GetCategory(); cat != "" {
+	if catName != "" {
+		fmt.Println(catName)
+	} else if cat := twitch.GetCategory(); cat != "" {
 		fmt.Println(cat)
 	}
 	copyToClipboard(newTopic)
@@ -183,23 +185,30 @@ func updateTwitchTitle(title string) {
 	}
 }
 
-func updateTwitchCategoryForTopic(topic string) {
+func updateTwitchCategoryForTopic(topic string) string {
 	cats, err := twitch.LoadCategories()
-	if err != nil || len(cats) == 0 {
-		return
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "topic: load categories failed: %v\n", err)
+		return ""
+	}
+	if len(cats) == 0 {
+		fmt.Fprintf(os.Stderr, "topic: no categories loaded from %s\n", twitch.CategoriesFile())
+		return ""
 	}
 	cat, ok := twitch.MatchCategory(topic, cats)
 	if !ok {
-		return
+		return ""
 	}
 	broadcasterID, err := twitch.BroadcasterID()
 	if err != nil || broadcasterID == "" {
 		fmt.Fprintf(os.Stderr, "topic: could not get broadcaster ID: %v\n", err)
-		return
+		return ""
 	}
 	if err := twitch.PatchChannels(broadcasterID, fmt.Sprintf(`{"game_id":"%d"}`, cat.ID)); err != nil {
 		fmt.Fprintf(os.Stderr, "topic: category update failed: %v\n", err)
+		return ""
 	}
+	return cat.Name
 }
 
 func updateGitHubStatus(topic string) {
