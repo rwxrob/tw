@@ -187,25 +187,13 @@ func client() (*http.Client, string, error) {
 		return httpClient, cachedClientID, nil
 	}
 	clientID := vars.Fetch[string]("TW_CLIENT_ID", "TwitchClientID", "")
-	clientSecret := vars.Fetch[string]("TW_CLIENT_SECRET", "TwitchClientSecret", "")
 	accessToken := vars.Fetch[string]("TW_TOKEN", "TwitchToken", "")
-	refreshToken := vars.Fetch[string]("TW_REFRESH_TOKEN", "TwitchRefreshToken", "")
 	if clientID == "" || accessToken == "" {
 		return nil, "", fmt.Errorf("twitch: no credentials")
 	}
-	conf := &oauth2.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		Endpoint: oauth2.Endpoint{
-			TokenURL: "https://id.twitch.tv/oauth2/token",
-		},
-	}
-	tok := &oauth2.Token{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-	}
+	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: accessToken})
 	cachedClientID = clientID
-	httpClient = conf.Client(context.Background(), tok)
+	httpClient = oauth2.NewClient(context.Background(), ts)
 	return httpClient, cachedClientID, nil
 }
 

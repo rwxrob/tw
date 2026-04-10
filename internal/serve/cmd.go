@@ -21,7 +21,7 @@ var Cmd = &bonzai.Cmd{
 	Name:  "serve",
 	Alias: "s|d|daemon",
 	Short: "start HTTP/WebSocket daemon (backgrounds itself)",
-	Cmds:  []*bonzai.Cmd{help.Cmd.AsHidden(), stopCmd, tailCmd, restartCmd},
+	Cmds:  []*bonzai.Cmd{help.Cmd.AsHidden(), stopCmd, tailCmd, restartCmd, psCmd},
 	Def:   &bonzai.Cmd{Do: run},
 	Long: `
 Starts all background daemons: HTTP overlay server, OBS WebSocket
@@ -34,7 +34,8 @@ via ServePID in vars. Logs to ~/Library/Logs/tw.log (macOS) or
 Subcommands:
   stop     send SIGTERM to the running daemon
   tail     tail -f the log file
-  restart  stop and restart the daemon`,
+  restart  stop and restart the daemon
+  ps       list all tw serve processes (including orphans)`,
 }
 
 var tailCmd = &bonzai.Cmd{
@@ -84,6 +85,58 @@ var stopCmd = &bonzai.Cmd{
 		fmt.Printf("serve: stopped (pid %d)\n", pid)
 		return nil
 	},
+}
+
+var psCmd = &bonzai.Cmd{
+	Name:  "ps",
+	Short: "list all tw serve processes (including orphans)",
+	Do: func(x *bonzai.Cmd, args ...string) error {
+		pids := servePIDs()
+		if len(pids) == 0 {
+			fmt.Println("serve: no tw serve processes found")
+			return nil
+		}
+		stored := runningPID()
+		for _, pid := range pids {
+			marker := ""
+			if pid == stored {
+				marker = " (tracked)"
+			}
+			fmt.Printf("pid %d%s\n", pid, marker)
+		}
+		return nil
+	},
+}
+
+// servePIDs returns PIDs of all running "tw serve" processes.
+// Uses pgrep on Unix and PowerShell Get-WmiObject on Windows.
+func servePIDs() []int {
+	var out []byte
+	var err error
+	if runtime.GOOS == "windows" {
+		out, err = exec.Command("powershell", "-Command",
+			`Get-WmiObject Win32_Process | Where-Object { $_.CommandLine -like '*tw serve*' } | Select-Object -ExpandProperty ProcessId`,
+		).Output()
+	} else {
+		out, err = exec.Command("pgrep", "-f", "tw serve").Output()
+	}
+	if err != nil {
+		return nil
+	}
+	self := os.Getpid()
+	var pids []int
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		pid, err := strconv.Atoi(line)
+		if err != nil || pid == self {
+			continue
+		}
+		pids = append(pids, pid)
+	}
+	return pids
 }
 
 func run(x *bonzai.Cmd, args ...string) error {
