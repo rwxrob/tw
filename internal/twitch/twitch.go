@@ -127,10 +127,12 @@ func helixGet(path, query string) ([]byte, error) {
 	defer resp.Body.Close()
 	if resp.StatusCode == 401 {
 		cachedClientID, cachedToken = "", ""
-		return nil, fmt.Errorf("HTTP 401: unauthorized")
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("HTTP 401: unauthorized: %s", body)
 	}
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, body)
 	}
 	return io.ReadAll(resp.Body)
 }
