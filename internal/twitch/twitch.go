@@ -2,6 +2,7 @@ package twitch
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 
+	"golang.org/x/oauth2"
 	"gopkg.in/yaml.v3"
 )
 
@@ -57,6 +59,29 @@ func MatchCategory(topic string, cats []Category) (Category, bool) {
 	return Category{}, false
 }
 
+// loadEnvFile parses the twitch-cli env file and returns a key→value map.
+func loadEnvFile() map[string]string {
+	home := os.Getenv("HOME")
+	envFile := filepath.Join(home, "Library", "Application Support", "twitch-cli", ".twitch-cli.env")
+	if _, err := os.Stat(envFile); os.IsNotExist(err) {
+		envFile = filepath.Join(home, ".config", "twitch-cli", ".twitch-cli.env")
+	}
+	f, err := os.Open(envFile)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+	m := map[string]string{}
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		k, v, ok := strings.Cut(scanner.Text(), "=")
+		if ok {
+			m[k] = v
+		}
+	}
+	return m
+}
+
 // LoadCreds returns (clientID, token) from env vars or the twitch-cli
 // config file at ~/Library/Application Support/twitch-cli/.twitch-cli.env.
 func LoadCreds() (clientID, token string) {
@@ -65,50 +90,57 @@ func LoadCreds() (clientID, token string) {
 	if clientID != "" && token != "" {
 		return
 	}
-	home := os.Getenv("HOME")
-	envFile := filepath.Join(home, "Library", "Application Support", "twitch-cli", ".twitch-cli.env")
-	if _, err := os.Stat(envFile); os.IsNotExist(err) {
-		envFile = filepath.Join(home, ".config", "twitch-cli", ".twitch-cli.env")
+	m := loadEnvFile()
+	if clientID == "" {
+		clientID = m["CLIENTID"]
 	}
-	f, err := os.Open(envFile)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		k, v, ok := strings.Cut(scanner.Text(), "=")
-		if !ok {
-			continue
-		}
-		switch k {
-		case "CLIENTID":
-			if clientID == "" {
-				clientID = v
-			}
-		case "ACCESSTOKEN":
-			if token == "" {
-				token = v
-			}
-		}
+	if token == "" {
+		token = m["ACCESSTOKEN"]
 	}
 	return
 }
 
-var cachedClientID, cachedToken string
+var httpClient *http.Client
+var cachedClientID string
 
-func creds() (clientID, token string) {
-	if cachedClientID != "" && cachedToken != "" {
-		return cachedClientID, cachedToken
+func client() (*http.Client, string, error) {
+	if httpClient != nil && cachedClientID != "" {
+		return httpClient, cachedClientID, nil
 	}
-	cachedClientID, cachedToken = LoadCreds()
-	return cachedClientID, cachedToken
+	m := loadEnvFile()
+	clientID := os.Getenv("TWITCH_CLIENT_ID")
+	if clientID == "" {
+		clientID = m["CLIENTID"]
+	}
+	clientSecret := m["CLIENTSECRET"]
+	accessToken := os.Getenv("TWITCH_TOKEN")
+	if accessToken == "" {
+		accessToken = m["ACCESSTOKEN"]
+	}
+	refreshToken := m["REFRESHTOKEN"]
+	if clientID == "" || accessToken == "" {
+		return nil, "", fmt.Errorf("twitch: no credentials")
+	}
+	conf := &oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		Endpoint: oauth2.Endpoint{
+			TokenURL: "https://id.twitch.tv/oauth2/token",
+		},
+	}
+	tok := &oauth2.Token{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}
+	cachedClientID = clientID
+	httpClient = conf.Client(context.Background(), tok)
+	return httpClient, cachedClientID, nil
 }
 
 func helixGet(path, query string) ([]byte, error) {
-	clientID, token := creds()
-	if clientID == "" || token == "" {
-		return nil, fmt.Errorf("twitch: no credentials")
+	c, clientID, err := client()
+	if err != nil {
+		return nil, err
 	}
 	u := "https://api.twitch.tv/helix" + path
 	if query != "" {
@@ -119,17 +151,11 @@ func helixGet(path, query string) ([]byte, error) {
 		return nil, err
 	}
 	req.Header.Set("Client-Id", clientID)
-	req.Header.Set("Authorization", "Bearer "+token)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode == 401 {
-		cachedClientID, cachedToken = "", ""
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("HTTP 401: unauthorized: %s", body)
-	}
 	if resp.StatusCode != 200 {
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, body)
@@ -138,9 +164,9 @@ func helixGet(path, query string) ([]byte, error) {
 }
 
 func helixPatch(path, query, jsonBody string) error {
-	clientID, token := creds()
-	if clientID == "" || token == "" {
-		return fmt.Errorf("twitch: no credentials")
+	c, clientID, err := client()
+	if err != nil {
+		return err
 	}
 	u := "https://api.twitch.tv/helix" + path
 	if query != "" {
@@ -151,18 +177,12 @@ func helixPatch(path, query, jsonBody string) error {
 		return err
 	}
 	req.Header.Set("Client-Id", clientID)
-	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode == 401 {
-		cachedClientID, cachedToken = "", ""
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("HTTP 401: %s", body)
-	}
 	if resp.StatusCode != 204 {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, body)
@@ -224,13 +244,20 @@ func GetCategory() string {
 	return ""
 }
 
-func Title() string {
-	info := channelInfo()
-	if info == nil {
-		return ""
+// ChannelTitle fetches the current stream title for the given broadcaster ID.
+func ChannelTitle(broadcasterID string) (string, error) {
+	out, err := helixGet("/channels", "broadcaster_id="+broadcasterID)
+	if err != nil {
+		return "", err
 	}
-	if v, ok := info["title"].(string); ok {
-		return v
+	var result struct {
+		Data []struct {
+			Title string `json:"title"`
+		} `json:"data"`
 	}
-	return ""
+	if err := json.Unmarshal(out, &result); err != nil || len(result.Data) == 0 {
+		return "", fmt.Errorf("twitch: no channel data")
+	}
+	return result.Data[0].Title, nil
 }
+
