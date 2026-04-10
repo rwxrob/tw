@@ -27,8 +27,11 @@ CREATE TABLE IF NOT EXISTS clips (
     duration         REAL    DEFAULT 0,
     thumbnail_url    TEXT,
     downloaded       INTEGER DEFAULT 0,
+    failed           INTEGER DEFAULT 0,
     weight           REAL    DEFAULT 1.0
 );`
+
+const migrateAddFailed = `ALTER TABLE clips ADD COLUMN failed INTEGER DEFAULT 0`
 
 // SyncClips fetches all Twitch clips for the authenticated broadcaster,
 // inserts new ones into clips.db, downloads missing MP4 files, and
@@ -50,6 +53,8 @@ func SyncClips() error {
 	if _, err := db.Exec(schema); err != nil {
 		return fmt.Errorf("clips: init schema: %w", err)
 	}
+	// migrate: ignore error if column already exists
+	_, _ = db.Exec(migrateAddFailed)
 
 	// Reset any thumbnails-prod clips that were incorrectly marked
 	// as downloaded (they may be JPEG thumbnails saved as .mp4).
@@ -88,7 +93,7 @@ func SyncClips() error {
 		}
 	}
 
-	rows, err := db.Query(`SELECT id, twitch_id, thumbnail_url FROM clips WHERE downloaded=0`)
+	rows, err := db.Query(`SELECT id, twitch_id, thumbnail_url FROM clips WHERE downloaded=0 AND (failed IS NULL OR failed=0)`)
 	if err != nil {
 		return fmt.Errorf("clips: query undownloaded: %w", err)
 	}
@@ -120,13 +125,17 @@ func SyncClips() error {
 		} else {
 			videoURL = twitch.ClipVideoURL(p.thumbnailURL)
 			if videoURL == "" {
-				log.Printf("clips: unrecognised thumbnail URL for %s", p.twitchID)
+				log.Printf("clips: unrecognised thumbnail URL for %s — marking failed", p.twitchID)
+				_, _ = db.Exec(`UPDATE clips SET failed=1 WHERE id=?`, p.id)
 				continue
 			}
 		}
 		dest := filepath.Join(dir, fmt.Sprintf("%d.mp4", p.id))
 		if err := downloadFile(videoURL, dest); err != nil {
 			log.Printf("clips: download %s: %v", p.twitchID, err)
+			if isPermFail(err) {
+				_, _ = db.Exec(`UPDATE clips SET failed=1 WHERE id=?`, p.id)
+			}
 			continue
 		}
 		if _, err := db.Exec(`UPDATE clips SET downloaded=1 WHERE id=?`, p.id); err != nil {
@@ -174,6 +183,16 @@ func resetFakeDownloads(db *sql.DB, dir string) error {
 	return nil
 }
 
+// permFailError signals a permanent (non-retryable) download failure.
+type permFailError struct{ msg string }
+
+func (e permFailError) Error() string { return e.msg }
+
+func isPermFail(err error) bool {
+	_, ok := err.(permFailError)
+	return ok
+}
+
 func downloadFile(url, dest string) error {
 	if _, err := os.Stat(dest); err == nil {
 		return nil
@@ -183,12 +202,15 @@ func downloadFile(url, dest string) error {
 		return err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone {
+		return permFailError{fmt.Sprintf("HTTP %d fetching %s", resp.StatusCode, url)}
+	}
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("HTTP %d fetching %s", resp.StatusCode, url)
 	}
 	ct := resp.Header.Get("Content-Type")
 	if strings.HasPrefix(ct, "image/") {
-		return fmt.Errorf("got image Content-Type %q instead of video from %s", ct, url)
+		return permFailError{fmt.Sprintf("got image Content-Type %q instead of video from %s", ct, url)}
 	}
 	tmp := dest + ".tmp"
 	f, err := os.Create(tmp)
